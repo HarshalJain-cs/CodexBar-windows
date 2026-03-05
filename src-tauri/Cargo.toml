@@ -10,7 +10,7 @@ default-run = "codexbar-windows"
 
 [lib]
 name = "codexbar_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "rlib"]
 
 [[bin]]
 name = "codexbar"
