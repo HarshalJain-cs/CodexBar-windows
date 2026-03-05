@@ -58,6 +58,8 @@ export interface Settings {
   globalShortcut: string;
   animationsEnabled: boolean;
   privacyMode: boolean;
+  soundEnabled: boolean;
+  updateChannel: string;
 }
 
 /** Provider metadata from get_available_providers */
@@ -89,4 +91,29 @@ export function getUsageLevel(percent: number): UsageLevel {
 
 export function getRemainingPercent(window: RateWindow): number {
   return Math.max(0, 100 - window.usedPercent);
+}
+
+/** Calculate usage pacing - returns pace ratio and direction arrow */
+export function getPacing(window: RateWindow): { pace: number; arrow: string; label: string } | null {
+  if (!window.resetsAt || !window.windowMinutes) return null;
+
+  const now = new Date();
+  const resetAt = new Date(window.resetsAt);
+  if (resetAt <= now) return null;
+
+  const windowMs = window.windowMinutes * 60 * 1000;
+  const remainingMs = resetAt.getTime() - now.getTime();
+  const elapsedMs = windowMs - remainingMs;
+  if (elapsedMs <= 0 || windowMs <= 0) return null;
+
+  const timeElapsedPct = (elapsedMs / windowMs) * 100;
+  if (timeElapsedPct <= 0) return null;
+
+  const pace = window.usedPercent / timeElapsedPct;
+
+  if (pace > 1.10) return { pace, arrow: "\u2191", label: "Well ahead" };
+  if (pace > 1.05) return { pace, arrow: "\u2197", label: "Slightly ahead" };
+  if (pace > 0.95) return { pace, arrow: "\u2192", label: "On track" };
+  if (pace > 0.90) return { pace, arrow: "\u2198", label: "Slightly behind" };
+  return { pace, arrow: "\u2193", label: "Well behind" };
 }

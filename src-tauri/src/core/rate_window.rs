@@ -72,6 +72,46 @@ impl RateWindow {
         }
     }
 
+    /// Calculate usage pacing (from ClaudexBar concept).
+    /// Returns a pace ratio: >1.0 means ahead of linear schedule, <1.0 behind.
+    /// Also returns a direction arrow for display.
+    pub fn pacing(&self) -> Option<(f64, &'static str)> {
+        let resets_at = self.resets_at?;
+        let window_mins = self.window_minutes? as f64;
+        let now = Utc::now();
+
+        if resets_at <= now {
+            return None;
+        }
+
+        let remaining_mins = (resets_at - now).num_minutes() as f64;
+        let elapsed_mins = window_mins - remaining_mins;
+        if elapsed_mins <= 0.0 || window_mins <= 0.0 {
+            return None;
+        }
+
+        let time_elapsed_pct = (elapsed_mins / window_mins) * 100.0;
+        if time_elapsed_pct <= 0.0 {
+            return None;
+        }
+
+        let pace = self.used_percent / time_elapsed_pct;
+
+        let arrow = if pace > 1.10 {
+            "\u{2191}" // ↑ well ahead
+        } else if pace > 1.05 {
+            "\u{2197}" // ↗ slightly ahead
+        } else if pace > 0.95 {
+            "\u{2192}" // → on track
+        } else if pace > 0.90 {
+            "\u{2198}" // ↘ slightly behind
+        } else {
+            "\u{2193}" // ↓ well behind
+        };
+
+        Some((pace, arrow))
+    }
+
     /// Get usage level for color coding
     pub fn usage_level(&self) -> UsageLevel {
         match self.used_percent {

@@ -136,6 +136,74 @@ pub fn autostart_status() -> i32 {
     0
 }
 
+/// Validate config files
+pub fn validate() -> i32 {
+    let path = Settings::settings_path();
+    let mut ok = true;
+
+    println!("Validating config files...\n");
+
+    if path.exists() {
+        match std::fs::read_to_string(&path) {
+            Ok(content) => match serde_json::from_str::<Settings>(&content) {
+                Ok(_) => println!("  \u{2713} settings.json: valid"),
+                Err(e) => {
+                    eprintln!("  \u{2717} settings.json: INVALID - {}", e);
+                    ok = false;
+                }
+            },
+            Err(e) => {
+                eprintln!("  \u{2717} settings.json: cannot read - {}", e);
+                ok = false;
+            }
+        }
+    } else {
+        println!("  - settings.json: not found (will use defaults)");
+    }
+
+    let home = dirs::home_dir().unwrap_or_default();
+
+    let claude_creds = home.join(".claude").join(".credentials.json");
+    if claude_creds.exists() {
+        match std::fs::read_to_string(&claude_creds) {
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(_) => println!("  \u{2713} Claude credentials: valid JSON"),
+                Err(e) => {
+                    eprintln!("  \u{2717} Claude credentials: INVALID - {}", e);
+                    ok = false;
+                }
+            },
+            Err(_) => println!("  - Claude credentials: cannot read"),
+        }
+    } else {
+        println!("  - Claude credentials: not found");
+    }
+
+    let codex_auth = home.join(".codex").join("auth.json");
+    if codex_auth.exists() {
+        match std::fs::read_to_string(&codex_auth) {
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(_) => println!("  \u{2713} Codex auth: valid JSON"),
+                Err(e) => {
+                    eprintln!("  \u{2717} Codex auth: INVALID - {}", e);
+                    ok = false;
+                }
+            },
+            Err(_) => println!("  - Codex auth: cannot read"),
+        }
+    } else {
+        println!("  - Codex auth: not found");
+    }
+
+    if ok {
+        println!("\nAll config files are valid.");
+        0
+    } else {
+        eprintln!("\nSome config files have issues.");
+        1
+    }
+}
+
 fn to_camel_case(s: &str) -> String {
     let mut result = String::new();
     let mut capitalize_next = false;

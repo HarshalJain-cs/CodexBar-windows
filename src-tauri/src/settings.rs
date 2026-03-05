@@ -36,7 +36,16 @@ pub struct Settings {
     pub animations_enabled: bool,
     /// Privacy mode (hide emails/org names)
     pub privacy_mode: bool,
+    /// Enable system sounds for alerts
+    #[serde(default = "default_true")]
+    pub sound_enabled: bool,
+    /// Update channel: "stable" or "beta"
+    #[serde(default = "default_stable")]
+    pub update_channel: String,
 }
+
+fn default_true() -> bool { true }
+fn default_stable() -> String { "stable".to_string() }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -59,6 +68,8 @@ impl Default for Settings {
             global_shortcut: "Ctrl+Shift+U".to_string(),
             animations_enabled: true,
             privacy_mode: false,
+            sound_enabled: true,
+            update_channel: "stable".to_string(),
         }
     }
 }

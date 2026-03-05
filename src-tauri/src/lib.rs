@@ -4,6 +4,8 @@ pub mod core;
 mod notifications;
 pub mod providers;
 pub mod settings;
+mod single_instance;
+pub mod sound;
 pub mod state;
 pub mod status;
 mod tray;
@@ -168,6 +170,15 @@ fn register_global_shortcut(app: &tauri::AppHandle, shortcut_str: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Single instance guard - prevent multiple instances
+    let _instance_guard = match single_instance::SingleInstanceGuard::acquire() {
+        Ok(guard) => guard,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+    };
+
     // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter(

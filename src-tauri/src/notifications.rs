@@ -1,14 +1,17 @@
 use crate::core::provider::ProviderId;
 use crate::core::rate_window::UsageLevel;
+use crate::sound;
 use crate::state::AppState;
 use std::collections::HashMap;
 use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
-/// Tracks which notifications have been sent to avoid duplicates
+/// Tracks which notifications have been sent to avoid duplicates.
+/// Also tracks session depletion/restoration transitions.
 #[derive(Default)]
 pub struct NotificationTracker {
     last_notified: HashMap<ProviderId, UsageLevel>,
+    was_depleted: HashMap<ProviderId, bool>,
 }
 
 impl NotificationTracker {
@@ -28,18 +31,37 @@ impl NotificationTracker {
         for (id, result) in snapshots.iter() {
             if let Some(ref usage) = result.usage {
                 let level = usage.primary.usage_level();
-                let last = self.last_notified.get(id);
+                let is_depleted = usage.primary.is_exhausted();
+                let was = self.was_depleted.get(id).copied().unwrap_or(false);
 
+                // Session depleted/restored detection
+                if is_depleted && !was {
+                    self.send_notification(
+                        app_handle,
+                        &format!("{} session depleted", id.display_name()),
+                        "Your session quota is fully used. It will reset soon.",
+                    );
+                    sound::play_critical();
+                    self.was_depleted.insert(*id, true);
+                } else if !is_depleted && was {
+                    self.send_notification(
+                        app_handle,
+                        &format!("{} session restored", id.display_name()),
+                        "Your session quota has been restored!",
+                    );
+                    sound::play_success();
+                    self.was_depleted.insert(*id, false);
+                }
+
+                // Threshold crossing notifications
+                let last = self.last_notified.get(id);
                 let should_notify = match (last, &level) {
-                    // First time seeing High or Critical
                     (None, UsageLevel::High) | (None, UsageLevel::Critical) => true,
-                    // Escalation from lower levels
                     (Some(UsageLevel::Low), UsageLevel::High)
                     | (Some(UsageLevel::Low), UsageLevel::Critical)
                     | (Some(UsageLevel::Medium), UsageLevel::High)
                     | (Some(UsageLevel::Medium), UsageLevel::Critical)
                     | (Some(UsageLevel::High), UsageLevel::Critical) => true,
-                    // Reset: usage dropped back to Low, clear tracking
                     (Some(_), UsageLevel::Low) => {
                         self.last_notified.remove(id);
                         false
@@ -53,36 +75,45 @@ impl NotificationTracker {
                     let remaining = 100.0 - used_pct;
 
                     let (title, body) = match level {
-                        UsageLevel::Critical => (
-                            format!("{} usage critical!", name),
-                            format!(
-                                "Only {:.0}% remaining. Consider slowing down.",
-                                remaining
-                            ),
-                        ),
-                        UsageLevel::High => (
-                            format!("{} usage high", name),
-                            format!(
-                                "{:.0}% used ({:.0}% remaining).",
-                                used_pct, remaining
-                            ),
-                        ),
+                        UsageLevel::Critical => {
+                            sound::play_critical();
+                            (
+                                format!("{} usage critical!", name),
+                                format!(
+                                    "Only {:.0}% remaining. Consider slowing down.",
+                                    remaining
+                                ),
+                            )
+                        }
+                        UsageLevel::High => {
+                            sound::play_warning();
+                            (
+                                format!("{} usage high", name),
+                                format!(
+                                    "{:.0}% used ({:.0}% remaining).",
+                                    used_pct, remaining
+                                ),
+                            )
+                        }
                         _ => continue,
                     };
 
-                    if let Err(e) = app_handle
-                        .notification()
-                        .builder()
-                        .title(&title)
-                        .body(&body)
-                        .show()
-                    {
-                        tracing::warn!("Failed to send notification: {}", e);
-                    }
-
+                    self.send_notification(app_handle, &title, &body);
                     self.last_notified.insert(*id, level);
                 }
             }
+        }
+    }
+
+    fn send_notification(&self, app_handle: &AppHandle, title: &str, body: &str) {
+        if let Err(e) = app_handle
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+        {
+            tracing::warn!("Failed to send notification: {}", e);
         }
     }
 }

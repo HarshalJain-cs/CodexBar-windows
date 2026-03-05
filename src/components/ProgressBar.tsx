@@ -18,20 +18,30 @@ export function ProgressBar({ percent, label, thin, showAsUsed }: ProgressBarPro
     <div className="w-full">
       {label && (
         <div className="flex justify-between mb-1">
-          <span className="text-[11px] text-zinc-400">{label}</span>
-          <span className="text-[11px] font-mono" style={{ color }}>
+          <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">{label}</span>
+          <span className="text-[11px] font-mono tabular-nums" style={{ color }}>
             {display.toFixed(0)}%{showAsUsed ? " used" : " left"}
           </span>
         </div>
       )}
-      <div className={`w-full ${height} rounded-full bg-zinc-800 overflow-hidden`}>
+      <div className={`w-full ${height} rounded-full bg-zinc-800/80 overflow-hidden`}>
         <div
-          className={`${height} rounded-full transition-all duration-700 ease-out`}
+          className={`${height} rounded-full transition-all duration-700 ease-out relative`}
           style={{
             width: `${percent}%`,
             backgroundColor: color,
+            boxShadow: percent > 80 ? `0 0 8px ${color}40` : undefined,
           }}
-        />
+        >
+          {!thin && percent > 5 && (
+            <div
+              className="absolute inset-0 rounded-full opacity-30"
+              style={{
+                background: `linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%)`,
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

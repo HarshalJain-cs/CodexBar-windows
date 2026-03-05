@@ -142,11 +142,18 @@ fn print_bar(label: &str, window: &codexbar_lib::core::rate_window::RateWindow) 
         .as_deref()
         .unwrap_or(&countdown);
 
+    // Pacing arrow (from ClaudexBar concept)
+    let pace_str = match window.pacing() {
+        Some((_, arrow)) => format!(" {}", arrow),
+        None => String::new(),
+    };
+
     println!(
-        "  {} [{}] {:>5.1}% left  {}",
+        "  {} [{}] {:>5.1}% left{}  {}",
         label,
         bar,
         remaining,
+        pace_str,
         color_dim(desc)
     );
 }

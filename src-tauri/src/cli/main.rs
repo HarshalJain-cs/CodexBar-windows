@@ -32,6 +32,10 @@ enum Commands {
         /// Show all providers, not just enabled
         #[arg(short, long)]
         all: bool,
+
+        /// Include status page info
+        #[arg(long)]
+        status: bool,
     },
 
     /// Show cost and credits information
@@ -82,6 +86,8 @@ enum ConfigAction {
     },
     /// Show config file path
     Path,
+    /// Validate config files
+    Validate,
 }
 
 #[derive(Subcommand)]
@@ -132,6 +138,7 @@ async fn main() {
             provider,
             json,
             all,
+            status: _,
         } => usage::run(provider, json, all).await,
 
         Commands::Cost { provider, json } => cost::run(provider, json).await,
@@ -141,6 +148,7 @@ async fn main() {
             ConfigAction::Get { key } => config::get(&key),
             ConfigAction::Set { key, value } => config::set(&key, &value),
             ConfigAction::Path => config::path(),
+            ConfigAction::Validate => config::validate(),
         },
 
         Commands::Account { action } => match action {
