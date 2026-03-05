@@ -1,0 +1,87 @@
+[package]
+name = "codexbar-windows"
+version = "0.1.0"
+description = "AI coding assistant usage monitor for Windows"
+authors = ["Harshal Jain"]
+license = "MIT"
+repository = "https://github.com/HarshalJain-cs/CodexBar-windows"
+edition = "2021"
+default-run = "codexbar-windows"
+
+[lib]
+name = "codexbar_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "codexbar"
+path = "src/cli/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri core + plugins
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-shell = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-store = "2"
+tauri-plugin-updater = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "cookies", "rustls-tls"], default-features = false }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async traits
+async-trait = "0.1"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Windows credential manager
+keyring = { version = "3", features = ["windows-native"] }
+
+# SQLite for cookie databases
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Cookie decryption (AES-256-GCM)
+aes-gcm = "0.10"
+base64 = "0.22"
+
+# Windows APIs (DPAPI)
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Security_Cryptography",
+    "Win32_System_Memory",
+    "Win32_Foundation",
+] }
+
+[dependencies.uuid]
+version = "1"
+features = ["v4"]
+
+[dependencies.dirs]
+version = "6"
+
+[dependencies.open]
+version = "5"
+
+[dependencies.clap]
+version = "4"
+features = ["derive"]

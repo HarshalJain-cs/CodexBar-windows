@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build CLI binary
+        run: cd src-tauri && cargo build --bin codexbar --release
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "CodexBar ${{ github.ref_name }}"
+          releaseBody: |
+            See the [changelog](https://github.com/HarshalJain-cs/CodexBar-windows/blob/main/CHANGELOG.md) for details.
+
+            ## Installation
+
+            ### Installer (recommended)
+            Download `CodexBar_*_x64-setup.exe` and run it.
+
+            ### MSI
+            Download `CodexBar_*_x64_en-US.msi` for enterprise/GPO deployment.
+
+            ### CLI only
+            Download `codexbar.exe` for command-line usage monitoring.
+
+            ### Portable
+            Download `codexbar-windows.exe` to run without installation.
+          releaseDraft: false
+          prerelease: false
+
+      - name: Upload CLI binary to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/codexbar.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

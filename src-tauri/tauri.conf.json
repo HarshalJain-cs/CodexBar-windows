@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "CodexBar",
+  "version": "0.1.0",
+  "identifier": "com.codexbar.windows",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CodexBar",
+        "width": 420,
+        "height": 620,
+        "visible": false,
+        "skipTaskbar": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "transparent": true,
+        "center": false
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false,
+      "tooltip": "CodexBar - AI Usage Monitor"
+    },
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/HarshalJain-cs/CodexBar-windows/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
+    }
+  }
+}

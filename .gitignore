@@ -1,0 +1,9 @@
+node_modules/
+dist/
+src-tauri/target/
+*.exe
+*.msi
+*.nsis
+.env
+.env.*
+*.log
