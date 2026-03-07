@@ -5,6 +5,7 @@ import type {
   ProviderStatus,
   ProviderUsage,
   Settings,
+  UsageTrend,
 } from "./types";
 
 export async function getAllUsage(): Promise<ProviderUsage[]> {
@@ -63,4 +64,8 @@ export async function getAutostart(): Promise<boolean> {
 
 export async function exportDiagnostics(): Promise<string> {
   return invoke<string>("export_diagnostics");
+}
+
+export async function getUsageTrends(): Promise<UsageTrend[]> {
+  return invoke<UsageTrend[]>("get_usage_trends");
 }

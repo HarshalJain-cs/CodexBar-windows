@@ -1,23 +1,45 @@
-import type { ProviderUsage, ProviderStatus } from "@/lib/types";
+import type { ProviderUsage, ProviderStatus, UsageTrend } from "@/lib/types";
 import { getPacing } from "@/lib/types";
 import { providerColors, providerIcons } from "@/lib/colors";
 import { ProgressBar } from "./ProgressBar";
 import { ResetCountdown } from "./ResetCountdown";
-import { StatusDot } from "./StatusDot";
 import { openUrl, refreshProvider } from "@/lib/api";
 import { useState } from "react";
 
 interface ProviderCardProps {
   provider: ProviderUsage;
   status?: ProviderStatus;
+  trend?: UsageTrend;
   showAsUsed?: boolean;
   resetTimeFormat?: "relative" | "absolute";
   privacyMode?: boolean;
 }
 
+const trendIndicators: Record<string, { arrow: string; color: string; label: string }> = {
+  rising: { arrow: "\u2191", color: "text-red-400", label: "Usage rising" },
+  falling: { arrow: "\u2193", color: "text-green-400", label: "Usage falling" },
+  steady: { arrow: "\u2192", color: "text-zinc-500", label: "Usage steady" },
+};
+
+const sourceLabels: Record<string, { label: string; color: string }> = {
+  oauth: { label: "OAuth", color: "text-blue-400 bg-blue-950/50 border-blue-900/30" },
+  web: { label: "Web", color: "text-purple-400 bg-purple-950/50 border-purple-900/30" },
+  cli: { label: "CLI", color: "text-emerald-400 bg-emerald-950/50 border-emerald-900/30" },
+  apikey: { label: "Key", color: "text-amber-400 bg-amber-950/50 border-amber-900/30" },
+};
+
+const statusConfig: Record<string, { dot: string; text: string }> = {
+  operational: { dot: "bg-green-500", text: "text-green-500/60" },
+  degradedPerformance: { dot: "bg-yellow-500", text: "text-yellow-500/60" },
+  partialOutage: { dot: "bg-orange-500", text: "text-orange-500/60" },
+  majorOutage: { dot: "bg-red-500 animate-pulse", text: "text-red-400/80" },
+  unknown: { dot: "bg-zinc-500", text: "text-zinc-500/60" },
+};
+
 export function ProviderCard({
   provider,
   status,
+  trend,
   showAsUsed = false,
   resetTimeFormat = "relative",
   privacyMode = false,
@@ -50,8 +72,16 @@ export function ProviderCard({
   const sessionPacing = usage ? getPacing(usage.primary) : null;
   const weeklyPacing = usage?.secondary ? getPacing(usage.secondary) : null;
 
+  // Auth source badge
+  const source = usage?.sourceLabel?.toLowerCase() || "";
+  const sourceBadge = sourceLabels[source];
+
+  // Status config
+  const statusStyle = status ? statusConfig[status.level] || statusConfig.unknown : null;
+  const isOutage = status && (status.level === "partialOutage" || status.level === "majorOutage");
+
   return (
-    <div className="rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/90 to-zinc-900/60 p-3.5 space-y-2.5 backdrop-blur-sm hover:border-zinc-700/60 transition-colors">
+    <div className={`rounded-xl border ${isOutage ? "border-red-900/50" : "border-zinc-800/80"} bg-gradient-to-b from-zinc-900/90 to-zinc-900/60 p-3.5 space-y-2.5 backdrop-blur-sm hover:border-zinc-700/60 transition-colors`}>
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -64,12 +94,19 @@ export function ProviderCard({
               {usage.accountPlan}
             </span>
           )}
-          <StatusDot status={status} />
+          {sourceBadge && (
+            <span className={`text-[9px] px-1.5 py-0.5 rounded border font-medium ${sourceBadge.color}`}>
+              {sourceBadge.label}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-800/50 text-zinc-500 font-mono">
-            {usage?.sourceLabel || "\u2014"}
-          </span>
+          {statusStyle && (
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${statusStyle.dot}`}
+              title={status?.description}
+            />
+          )}
           <button
             onClick={handleRefresh}
             className={`text-zinc-500 hover:text-zinc-300 transition-all p-0.5 ${isRefreshing ? "animate-spin" : ""}`}
@@ -85,6 +122,14 @@ export function ProviderCard({
         </div>
       </div>
 
+      {/* Status warning banner */}
+      {isOutage && status && (
+        <div className="text-[10px] text-red-400/80 bg-red-950/20 rounded-md px-2 py-1 border border-red-900/20 flex items-center gap-1.5">
+          <span className={`inline-block w-1.5 h-1.5 rounded-full ${statusStyle!.dot}`} />
+          {status.description}
+        </div>
+      )}
+
       {/* Error state */}
       {provider.error && !usage && (
         <div className="text-xs text-red-400/80 bg-red-950/30 rounded-lg px-2.5 py-2 border border-red-900/30">
@@ -98,7 +143,17 @@ export function ProviderCard({
           {/* Session usage */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Session</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Session</span>
+                {trend?.trend && trendIndicators[trend.trend] && (
+                  <span
+                    className={`text-[10px] ${trendIndicators[trend.trend].color}`}
+                    title={trendIndicators[trend.trend].label}
+                  >
+                    {trendIndicators[trend.trend].arrow}
+                  </span>
+                )}
+              </div>
               {sessionPacing && (
                 <span className="text-[10px] text-zinc-500" title={sessionPacing.label}>
                   {sessionPacing.arrow} {sessionPacing.label}

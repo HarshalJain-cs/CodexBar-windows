@@ -60,6 +60,8 @@ export interface Settings {
   privacyMode: boolean;
   soundEnabled: boolean;
   updateChannel: string;
+  providerRefreshIntervals: Record<string, number>;
+  theme: string;
 }
 
 /** Provider metadata from get_available_providers */
@@ -81,6 +83,13 @@ export interface DeviceCodeResponse {
   verificationUri: string;
   expiresIn: number;
   interval: number;
+}
+
+/** Usage trend data from history tracking */
+export interface UsageTrend {
+  providerId: string;
+  trend: "rising" | "falling" | "steady" | null;
+  points: { timestamp: string; usedPercent: number }[];
 }
 
 /** Usage level for color coding */

@@ -70,6 +70,13 @@ pub async fn refresh_single_provider(
 
     let mut snapshots = app_state.snapshots.write().await;
     snapshots.insert(id, result.clone());
+    drop(snapshots);
+
+    // Record history point
+    if let Some(ref usage) = result.usage {
+        let mut history = app_state.history.write().await;
+        history.record(id, usage.primary.used_percent);
+    }
 
     result
 }

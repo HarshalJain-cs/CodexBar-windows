@@ -104,12 +104,34 @@ pub async fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| format!("Failed to open URL: {}", e))
 }
 
-/// Export diagnostics bundle as JSON
+/// Get usage trends for all providers
 #[tauri::command]
-pub async fn export_diagnostics(state: State<'_, AppState>) -> Result<String, String> {
-    let settings = state.settings.read().await;
-    let snapshots = state.snapshots.read().await;
-    let statuses = state.statuses.read().await;
+pub async fn get_usage_trends(
+    state: State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let history = state.history.read().await;
+    let mut trends = Vec::new();
+
+    for id in ProviderId::all() {
+        let trend = history.trend(id);
+        let points = history.get(id);
+        if !points.is_empty() {
+            trends.push(serde_json::json!({
+                "providerId": format!("{:?}", id).to_lowercase(),
+                "trend": trend,
+                "points": points,
+            }));
+        }
+    }
+
+    Ok(trends)
+}
+
+/// Shared diagnostics export logic (usable from both Tauri command and tray menu)
+pub async fn export_diagnostics_impl(app_state: &AppState) -> Result<String, String> {
+    let settings = app_state.settings.read().await;
+    let snapshots = app_state.snapshots.read().await;
+    let statuses = app_state.statuses.read().await;
 
     // Redacted settings (strip cookies and API keys)
     let mut redacted_settings = serde_json::to_value(&*settings)
@@ -139,4 +161,10 @@ pub async fn export_diagnostics(state: State<'_, AppState>) -> Result<String, St
 
     serde_json::to_string_pretty(&diag)
         .map_err(|e| format!("Failed to serialize diagnostics: {}", e))
+}
+
+/// Export diagnostics bundle as JSON (Tauri command wrapper)
+#[tauri::command]
+pub async fn export_diagnostics(state: State<'_, AppState>) -> Result<String, String> {
+    export_diagnostics_impl(state.inner()).await
 }

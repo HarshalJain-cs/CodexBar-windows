@@ -91,6 +91,7 @@ export function Settings({ onBack }: SettingsProps) {
             settings={settings}
             providers={availableProviders}
             onToggle={toggleProvider}
+            onUpdate={updateSettings}
           />
         )}
         {activeTab === "auth" && (
@@ -150,6 +151,13 @@ function GeneralTab({
         />
       </SettingRow>
 
+      <SettingRow label="Sound alerts">
+        <Toggle
+          checked={settings.soundEnabled}
+          onChange={(v) => onUpdate({ ...settings, soundEnabled: v })}
+        />
+      </SettingRow>
+
       <SettingRow label="Launch at startup">
         <Toggle
           checked={settings.startAtLogin}
@@ -204,32 +212,78 @@ function GeneralTab({
   );
 }
 
+const providerIntervalOptions = [
+  { value: 0, label: "Default" },
+  { value: 60, label: "1 min" },
+  { value: 120, label: "2 min" },
+  { value: 300, label: "5 min" },
+  { value: 600, label: "10 min" },
+  { value: 900, label: "15 min" },
+  { value: 1800, label: "30 min" },
+];
+
 function ProvidersTab({
   settings,
   providers,
   onToggle,
+  onUpdate,
 }: {
   settings: SettingsType;
   providers: ProviderInfo[];
   onToggle: (id: string) => void;
+  onUpdate: (s: SettingsType) => void;
 }) {
+  const getProviderInterval = (id: string) =>
+    settings.providerRefreshIntervals?.[id] ?? 0;
+
+  const setProviderInterval = (id: string, secs: number) => {
+    const intervals = { ...settings.providerRefreshIntervals };
+    if (secs === 0) {
+      delete intervals[id];
+    } else {
+      intervals[id] = secs;
+    }
+    onUpdate({ ...settings, providerRefreshIntervals: intervals });
+  };
+
   return (
     <div className="space-y-2">
-      {providers.map((p) => (
-        <div
-          key={p.id}
-          className="flex items-center justify-between p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/50"
-        >
-          <div>
-            <div className="text-xs font-medium text-zinc-200">{p.name}</div>
-            <div className="text-[10px] text-zinc-500">{p.id}</div>
+      {providers.map((p) => {
+        const isEnabled = settings.enabledProviders.includes(p.id);
+        return (
+          <div
+            key={p.id}
+            className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/50 space-y-1.5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-medium text-zinc-200">{p.name}</div>
+                <div className="text-[10px] text-zinc-500">{p.id}</div>
+              </div>
+              <Toggle
+                checked={isEnabled}
+                onChange={() => onToggle(p.id)}
+              />
+            </div>
+            {isEnabled && (
+              <div className="flex items-center justify-between pt-0.5">
+                <span className="text-[10px] text-zinc-500">Refresh interval</span>
+                <select
+                  value={getProviderInterval(p.id)}
+                  onChange={(e) => setProviderInterval(p.id, Number(e.target.value))}
+                  className="bg-zinc-800 text-zinc-300 text-[10px] rounded px-1.5 py-0.5 border border-zinc-700"
+                >
+                  {providerIntervalOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-          <Toggle
-            checked={settings.enabledProviders.includes(p.id)}
-            onChange={() => onToggle(p.id)}
-          />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -409,6 +463,18 @@ function DisplayTab({
 }) {
   return (
     <div className="space-y-4">
+      <SettingRow label="Theme">
+        <select
+          value={settings.theme}
+          onChange={(e) => onUpdate({ ...settings, theme: e.target.value })}
+          className="bg-zinc-800 text-zinc-200 text-xs rounded px-2 py-1 border border-zinc-700"
+        >
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="system">System</option>
+        </select>
+      </SettingRow>
+
       <SettingRow label="Show usage as">
         <select
           value={settings.showAsUsed ? "used" : "remaining"}

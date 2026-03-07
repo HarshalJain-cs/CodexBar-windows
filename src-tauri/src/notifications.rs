@@ -26,6 +26,7 @@ impl NotificationTracker {
             return;
         }
 
+        let sound_on = settings.sound_enabled;
         let snapshots = state.snapshots.read().await;
 
         for (id, result) in snapshots.iter() {
@@ -41,7 +42,7 @@ impl NotificationTracker {
                         &format!("{} session depleted", id.display_name()),
                         "Your session quota is fully used. It will reset soon.",
                     );
-                    sound::play_critical();
+                    if sound_on { sound::play_critical(); }
                     self.was_depleted.insert(*id, true);
                 } else if !is_depleted && was {
                     self.send_notification(
@@ -49,7 +50,7 @@ impl NotificationTracker {
                         &format!("{} session restored", id.display_name()),
                         "Your session quota has been restored!",
                     );
-                    sound::play_success();
+                    if sound_on { sound::play_success(); }
                     self.was_depleted.insert(*id, false);
                 }
 
@@ -76,7 +77,7 @@ impl NotificationTracker {
 
                     let (title, body) = match level {
                         UsageLevel::Critical => {
-                            sound::play_critical();
+                            if sound_on { sound::play_critical(); }
                             (
                                 format!("{} usage critical!", name),
                                 format!(
@@ -86,7 +87,7 @@ impl NotificationTracker {
                             )
                         }
                         UsageLevel::High => {
-                            sound::play_warning();
+                            if sound_on { sound::play_warning(); }
                             (
                                 format!("{} usage high", name),
                                 format!(

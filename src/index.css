@@ -5,13 +5,47 @@
   font-size: 14px;
   line-height: 1.5;
   font-weight: 400;
-  color: #e4e4e7;
-  background-color: #09090b;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Theme colors - dark mode (default) */
+  --cb-bg: #09090b;
+  --cb-text: #e4e4e7;
+  --cb-scrollbar: #3f3f46;
+  --cb-scrollbar-hover: #52525b;
+
+  color: var(--cb-text);
+  background-color: var(--cb-bg);
 }
+
+/* Light theme */
+[data-theme="light"] {
+  --cb-bg: #ffffff;
+  --cb-text: #18181b;
+  --cb-scrollbar: #d4d4d8;
+  --cb-scrollbar-hover: #a1a1aa;
+}
+
+/* Light theme overrides for Tailwind dark colors */
+[data-theme="light"] .bg-zinc-950 { background-color: #ffffff !important; }
+[data-theme="light"] .bg-zinc-900\/90 { background-color: rgba(244, 244, 245, 0.9) !important; }
+[data-theme="light"] .bg-zinc-900\/60 { background-color: rgba(244, 244, 245, 0.6) !important; }
+[data-theme="light"] .bg-zinc-900\/50 { background-color: rgba(244, 244, 245, 0.5) !important; }
+[data-theme="light"] .bg-zinc-800 { background-color: #e4e4e7 !important; }
+[data-theme="light"] .bg-zinc-800\/80 { background-color: rgba(228, 228, 231, 0.8) !important; }
+[data-theme="light"] .bg-zinc-800\/50 { background-color: rgba(228, 228, 231, 0.5) !important; }
+[data-theme="light"] .bg-zinc-800\/30 { background-color: rgba(228, 228, 231, 0.3) !important; }
+[data-theme="light"] .text-zinc-100 { color: #18181b !important; }
+[data-theme="light"] .text-zinc-200 { color: #27272a !important; }
+[data-theme="light"] .text-zinc-300 { color: #3f3f46 !important; }
+[data-theme="light"] .text-zinc-400 { color: #52525b !important; }
+[data-theme="light"] .text-zinc-500 { color: #71717a !important; }
+[data-theme="light"] .border-zinc-800\/80 { border-color: rgba(212, 212, 216, 0.8) !important; }
+[data-theme="light"] .border-zinc-800\/50 { border-color: rgba(212, 212, 216, 0.5) !important; }
+[data-theme="light"] .border-zinc-800 { border-color: #d4d4d8 !important; }
+[data-theme="light"] .border-zinc-700 { border-color: #a1a1aa !important; }
 
 * {
   margin: 0;
@@ -34,10 +68,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: var(--cb-scrollbar);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: var(--cb-scrollbar-hover);
 }

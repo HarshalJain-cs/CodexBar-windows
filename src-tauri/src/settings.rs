@@ -42,10 +42,17 @@ pub struct Settings {
     /// Update channel: "stable" or "beta"
     #[serde(default = "default_stable")]
     pub update_channel: String,
+    /// Per-provider refresh interval overrides (seconds). 0 or absent = use global.
+    #[serde(default)]
+    pub provider_refresh_intervals: HashMap<String, u64>,
+    /// Theme: "dark", "light", or "system"
+    #[serde(default = "default_dark")]
+    pub theme: String,
 }
 
 fn default_true() -> bool { true }
 fn default_stable() -> String { "stable".to_string() }
+fn default_dark() -> String { "dark".to_string() }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -70,6 +77,8 @@ impl Default for Settings {
             privacy_mode: false,
             sound_enabled: true,
             update_channel: "stable".to_string(),
+            provider_refresh_intervals: HashMap::new(),
+            theme: "dark".to_string(),
         }
     }
 }
@@ -129,5 +138,14 @@ impl Settings {
     pub fn get_api_key(&self, id: &ProviderId) -> Option<&String> {
         let key = format!("{:?}", id).to_lowercase();
         self.api_keys.get(&key)
+    }
+
+    /// Get refresh interval for a specific provider (0 = use global)
+    pub fn get_provider_refresh_interval(&self, id: &ProviderId) -> u64 {
+        let key = format!("{:?}", id).to_lowercase();
+        self.provider_refresh_intervals
+            .get(&key)
+            .copied()
+            .unwrap_or(0)
     }
 }

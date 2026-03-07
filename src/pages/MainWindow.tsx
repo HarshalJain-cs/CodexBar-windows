@@ -1,6 +1,7 @@
 import { useUsageData } from "@/hooks/useUsageData";
 import { useProviderStatus } from "@/hooks/useProviderStatus";
 import { useSettings } from "@/hooks/useSettings";
+import { useUsageTrends } from "@/hooks/useUsageTrends";
 import { ProviderCard } from "@/components/ProviderCard";
 import { HeaderBar } from "@/components/HeaderBar";
 import { EmptyState } from "@/components/EmptyState";
@@ -14,6 +15,7 @@ export function MainWindow({ onOpenSettings }: MainWindowProps) {
   const { providers, loading, lastUpdated, refresh } = useUsageData();
   const statuses = useProviderStatus();
   const { settings } = useSettings();
+  const trends = useUsageTrends();
 
   const showAsUsed = settings?.showAsUsed ?? false;
   const resetTimeFormat = (settings?.resetTimeFormat ?? "relative") as "relative" | "absolute";
@@ -42,6 +44,7 @@ export function MainWindow({ onOpenSettings }: MainWindowProps) {
               key={provider.providerId}
               provider={provider}
               status={statuses[provider.providerId]}
+              trend={trends[provider.providerId]}
               showAsUsed={showAsUsed}
               resetTimeFormat={resetTimeFormat}
               privacyMode={privacyMode}

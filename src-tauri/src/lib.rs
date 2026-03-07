@@ -158,6 +158,7 @@ pub fn run() {
             commands::get_available_providers,
             commands::open_url,
             commands::export_diagnostics,
+            commands::get_usage_trends,
             start_copilot_device_flow,
             poll_copilot_device_flow,
             check_for_updates,
@@ -171,11 +172,17 @@ pub fn run() {
                 MenuItem::with_id(app, "refresh", "Refresh All", true, None::<&str>)?;
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
-            let separator =
-                MenuItem::with_id(app, "sep", "─────────────", false, None::<&str>)?;
+            let diagnostics =
+                MenuItem::with_id(app, "diagnostics", "Export Diagnostics", true, None::<&str>)?;
+            let sep1 =
+                MenuItem::with_id(app, "sep1", "─────────────", false, None::<&str>)?;
+            let sep2 =
+                MenuItem::with_id(app, "sep2", "─────────────", false, None::<&str>)?;
 
-            let menu =
-                Menu::with_items(app, &[&refresh, &separator, &settings_item, &quit])?;
+            let menu = Menu::with_items(
+                app,
+                &[&refresh, &sep1, &settings_item, &diagnostics, &sep2, &quit],
+            )?;
 
             // Generate initial tray icon
             let initial_icon = renderer::create_bar_icon(0.0, 0.0);
@@ -202,6 +209,29 @@ pub fn run() {
                             let _ = window.show();
                             let _ = window.set_focus();
                         }
+                    }
+                    "diagnostics" => {
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let state = app.state::<AppState>();
+                            match commands::export_diagnostics_impl(state.inner()).await {
+                                Ok(json) => {
+                                    // Write to temp file and open folder
+                                    let temp = std::env::temp_dir().join("codexbar-diagnostics.json");
+                                    if std::fs::write(&temp, &json).is_ok() {
+                                        let _ = app.emit("diagnostics-exported", temp.to_string_lossy().to_string());
+                                        // Open file explorer to the file
+                                        let _ = std::process::Command::new("explorer")
+                                            .arg("/select,")
+                                            .arg(&temp)
+                                            .spawn();
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to export diagnostics: {}", e);
+                                }
+                            }
+                        });
                     }
                     _ => {}
                 })
@@ -271,22 +301,73 @@ pub fn run() {
                 });
             }
 
-            // Start background refresh timer with notifications
+            // Start background refresh timer with per-provider intervals
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                use std::collections::HashMap;
+                use std::time::Instant;
+                use crate::core::provider::ProviderId;
+
                 // Initial fetch after a short delay
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
                 let mut notification_tracker = NotificationTracker::new();
+                let mut last_refresh: HashMap<ProviderId, Instant> = HashMap::new();
+                let http_client = reqwest::Client::new();
+
+                // Initial full refresh
+                let state = app_handle.state::<AppState>();
+                refresh_all_providers(state.inner(), &app_handle).await;
 
                 loop {
                     let state = app_handle.state::<AppState>();
-                    refresh_all_providers(state.inner(), &app_handle).await;
+                    let settings = state.settings.read().await.clone();
+                    let global_interval = settings.refresh_interval_secs;
+                    let now = Instant::now();
+                    let mut any_refreshed = false;
 
-                    // Check thresholds and send notifications
-                    notification_tracker
-                        .check_and_notify(&app_handle, state.inner())
-                        .await;
+                    // Refresh providers whose interval has elapsed
+                    for id in ProviderId::all() {
+                        if !settings.is_provider_enabled(id) {
+                            continue;
+                        }
+
+                        let provider_interval = settings.get_provider_refresh_interval(id);
+                        let effective_interval = if provider_interval > 0 {
+                            provider_interval
+                        } else {
+                            global_interval
+                        };
+
+                        let should_refresh = match last_refresh.get(id) {
+                            Some(last) => now.duration_since(*last).as_secs() >= effective_interval,
+                            None => true,
+                        };
+
+                        if should_refresh {
+                            refresh::refresh_single_provider(state.inner(), *id, &settings).await;
+
+                            // Also refresh status page
+                            if let Some(status_result) =
+                                status::fetch_statuspage(&http_client, *id).await
+                            {
+                                let mut statuses = state.statuses.write().await;
+                                statuses.insert(*id, status_result);
+                            }
+
+                            last_refresh.insert(*id, Instant::now());
+                            any_refreshed = true;
+                        }
+                    }
+
+                    if any_refreshed {
+                        let _ = app_handle.emit("usage-updated", ());
+
+                        // Check thresholds and send notifications
+                        notification_tracker
+                            .check_and_notify(&app_handle, state.inner())
+                            .await;
+                    }
 
                     // Update tray icon
                     let mut tray_mgr = tray::manager::TrayManager::new();
@@ -303,12 +384,8 @@ pub fn run() {
                         let _ = tray.set_tooltip(Some(&tooltip));
                     }
 
-                    // Wait for next refresh cycle
-                    let interval = {
-                        let settings = state.settings.read().await;
-                        settings.refresh_interval_secs
-                    };
-                    tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
+                    // Tick every 30 seconds to check per-provider intervals
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
                 }
             });
 
