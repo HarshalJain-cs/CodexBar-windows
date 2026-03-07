@@ -4,7 +4,7 @@ pub mod copilot;
 pub mod cursor;
 pub mod gemini;
 
-use crate::core::provider::{FetchContext, Provider, ProviderId, ProviderError, SourceMode};
+use crate::core::provider::{FetchContext, Provider, ProviderId, ProviderError};
 use crate::core::usage_snapshot::UsageSnapshot;
 
 /// Create a provider instance by ID

@@ -32,7 +32,7 @@ impl Provider for GeminiProvider {
         }
     }
 
-    async fn fetch_usage(&self, ctx: &FetchContext) -> Result<UsageSnapshot, ProviderError> {
+    async fn fetch_usage(&self, _ctx: &FetchContext) -> Result<UsageSnapshot, ProviderError> {
         api::fetch_gemini_usage().await
     }
 

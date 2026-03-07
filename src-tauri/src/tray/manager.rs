@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use tokio::sync::RwLock;
-
 use crate::core::provider::ProviderId;
 use crate::state::AppState;
 use crate::tray::renderer;

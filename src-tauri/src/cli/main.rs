@@ -4,6 +4,7 @@ mod usage;
 mod cost;
 mod config;
 mod account;
+mod diagnostics;
 
 #[derive(Parser)]
 #[command(
@@ -65,6 +66,17 @@ enum Commands {
     Autostart {
         #[command(subcommand)]
         action: AutostartAction,
+    },
+
+    /// Export diagnostics bundle
+    Diagnostics {
+        /// Output as JSON (default: human-readable)
+        #[arg(long)]
+        json: bool,
+
+        /// Save to file instead of stdout
+        #[arg(short, long)]
+        output: Option<String>,
     },
 }
 
@@ -138,8 +150,8 @@ async fn main() {
             provider,
             json,
             all,
-            status: _,
-        } => usage::run(provider, json, all).await,
+            status,
+        } => usage::run(provider, json, all, status).await,
 
         Commands::Cost { provider, json } => cost::run(provider, json).await,
 
@@ -162,6 +174,8 @@ async fn main() {
             AutostartAction::Disable => config::autostart_set(false),
             AutostartAction::Status => config::autostart_status(),
         },
+
+        Commands::Diagnostics { json, output } => diagnostics::run(json, output).await,
     };
 
     std::process::exit(exit_code);

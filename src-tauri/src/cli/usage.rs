@@ -2,9 +2,10 @@ use codexbar_lib::core::provider::{FetchContext, ProviderId};
 use codexbar_lib::core::rate_window::UsageLevel;
 use codexbar_lib::providers;
 use codexbar_lib::settings::Settings;
+use codexbar_lib::status;
 
 /// Run the `usage` command
-pub async fn run(provider_filter: Option<String>, json: bool, all: bool) -> i32 {
+pub async fn run(provider_filter: Option<String>, json: bool, all: bool, show_status: bool) -> i32 {
     let settings = Settings::load();
 
     let target_providers: Vec<ProviderId> = if let Some(ref name) = provider_filter {
@@ -35,6 +36,7 @@ pub async fn run(provider_filter: Option<String>, json: bool, all: bool) -> i32 
     }
 
     let mut results = Vec::new();
+    let http_client = reqwest::Client::new();
 
     for id in &target_providers {
         let ctx = FetchContext {
@@ -44,29 +46,55 @@ pub async fn run(provider_filter: Option<String>, json: bool, all: bool) -> i32 
         };
 
         let provider = providers::create_provider(*id);
+        let status_info = if show_status {
+            status::fetch_statuspage(&http_client, *id).await
+        } else {
+            None
+        };
+
         match provider.fetch_usage(&ctx).await {
             Ok(usage) => {
                 if json {
-                    results.push(serde_json::json!({
+                    let mut entry = serde_json::json!({
                         "provider": format!("{:?}", id).to_lowercase(),
                         "name": id.display_name(),
                         "usage": usage,
                         "error": null,
-                    }));
+                    });
+                    if let Some(ref st) = status_info {
+                        entry["status"] = serde_json::json!({
+                            "level": st.level,
+                            "description": st.description,
+                        });
+                    }
+                    results.push(entry);
                 } else {
                     print_usage_card(id, &usage);
+                    if let Some(ref st) = status_info {
+                        print_status(st);
+                    }
                 }
             }
             Err(e) => {
                 if json {
-                    results.push(serde_json::json!({
+                    let mut entry = serde_json::json!({
                         "provider": format!("{:?}", id).to_lowercase(),
                         "name": id.display_name(),
                         "usage": null,
                         "error": e.to_string(),
-                    }));
+                    });
+                    if let Some(ref st) = status_info {
+                        entry["status"] = serde_json::json!({
+                            "level": st.level,
+                            "description": st.description,
+                        });
+                    }
+                    results.push(entry);
                 } else {
                     eprintln!("{}: {}", id.display_name(), color_red(&e.to_string()));
+                    if let Some(ref st) = status_info {
+                        print_status(st);
+                    }
                 }
             }
         }
@@ -181,4 +209,16 @@ fn color_orange(s: &str) -> String {
 
 fn color_red(s: &str) -> String {
     format!("\x1b[31m{}\x1b[0m", s)
+}
+
+fn print_status(st: &codexbar_lib::status::ProviderStatus) {
+    use codexbar_lib::status::StatusLevel;
+    let (indicator, color_fn): (&str, fn(&str) -> String) = match st.level {
+        StatusLevel::Operational => ("\u{2713}", color_green),
+        StatusLevel::DegradedPerformance => ("~", color_yellow),
+        StatusLevel::PartialOutage => ("!", color_orange),
+        StatusLevel::MajorOutage => ("\u{2717}", color_red),
+        StatusLevel::Unknown => ("?", color_dim),
+    };
+    println!("  {} Status: {}", color_fn(indicator), st.description);
 }

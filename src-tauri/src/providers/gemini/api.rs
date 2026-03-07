@@ -38,7 +38,7 @@ pub async fn fetch_gemini_usage() -> Result<UsageSnapshot, ProviderError> {
     }
 
     // For now, return a basic snapshot since Gemini's quota API format varies
-    let json: serde_json::Value = resp
+    let _json: serde_json::Value = resp
         .json()
         .await
         .map_err(|e| ProviderError::Parse(format!("Failed to parse: {}", e)))?;

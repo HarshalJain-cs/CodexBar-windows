@@ -9,11 +9,15 @@ Windows port inspired by [CodexBar for macOS](https://github.com/steipete/CodexB
 - **System tray icon** with dynamic dual-bar visualization of session and weekly usage
 - **5 AI providers**: Claude, Codex (ChatGPT), Cursor, Google Gemini, GitHub Copilot
 - **Multiple auth methods**: OAuth tokens, browser cookies (DPAPI decryption), API keys, GitHub device flow
+- **Per-provider auth configuration**: choose source mode (Auto/OAuth/Web/CLI/API Key) and paste manual cookies
 - **Windows toast notifications** when usage crosses warning/critical thresholds
 - **Global keyboard shortcut** (Ctrl+Shift+U) to toggle the dashboard
 - **CLI tool** (`codexbar`) for terminal-based usage monitoring with colored output and JSON mode
+- **Diagnostics export**: redacted system info bundle for troubleshooting (CLI + UI)
+- **Provider status pages**: inline statuspage.io integration for Codex, Claude, Cursor, and Copilot
 - **Auto-update** via GitHub Releases
 - **Launch at startup** via Windows registry
+- **Single instance** enforcement — only one CodexBar runs at a time
 
 ## Installation
 
@@ -35,19 +39,41 @@ codexbar usage
 # Show all providers with JSON output
 codexbar usage --all --json
 
+# Include provider status page info
+codexbar usage --status
+
 # Filter by provider
 codexbar usage -p claude
+
+# Show cost/plan info
+codexbar cost
 
 # Show account info
 codexbar account status
 
+# Login to GitHub Copilot (device flow)
+codexbar account login copilot
+
 # Manage settings
 codexbar config list
 codexbar config set refresh_interval_secs 120
+codexbar config validate
 
-# Login to GitHub Copilot (device flow)
-codexbar account login copilot
+# Export diagnostics
+codexbar diagnostics
+codexbar diagnostics --json
+codexbar diagnostics --output diag.json
 ```
+
+## Settings UI
+
+The Settings window has 5 tabs:
+
+- **General**: Refresh interval, notifications, startup, thresholds, keyboard shortcut
+- **Providers**: Enable/disable each provider
+- **Auth**: Per-provider source mode, manual cookie paste, Copilot GitHub sign-in
+- **Display**: Usage display mode, reset time format, animations, privacy mode
+- **About**: Version, links, check for updates, export diagnostics
 
 ## Building from Source
 
@@ -88,17 +114,27 @@ src-tauri/
     providers/      # Claude, Codex, Cursor, Gemini, Copilot implementations
     browser/        # Cookie extraction (Chrome, Edge, Brave, Firefox)
     tray/           # Dynamic icon renderer, tooltip, animation
-    cli/            # CLI binary (usage, config, account subcommands)
+    cli/            # CLI binary (usage, cost, config, account, diagnostics)
+    refresh.rs      # Shared provider refresh logic
     notifications.rs # Windows toast notification system
     settings.rs     # Persistent settings (%APPDATA%/CodexBar/settings.json)
     state.rs        # Shared application state
-    commands.rs     # Tauri command bridge
+    commands.rs     # Tauri command bridge + diagnostics export
 src/
-  pages/            # MainWindow, Settings
-  components/       # ProviderCard, ProgressBar, HeaderBar, etc.
+  pages/            # MainWindow, Settings (5 tabs)
+  components/       # ProviderCard, ProgressBar, CopilotLoginDialog, etc.
   hooks/            # useUsageData, useSettings, useProviderStatus
   lib/              # API client, types, colors
 ```
+
+## Auto-Update
+
+CodexBar checks for updates on startup and via the Settings > About tab. To enable signed auto-updates for your fork:
+
+1. Generate a signing key pair: `npx @tauri-apps/cli signer generate`
+2. Set the public key in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`
+3. Set `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in your GitHub Actions secrets
+4. The release workflow will sign update artifacts automatically
 
 ## License
 

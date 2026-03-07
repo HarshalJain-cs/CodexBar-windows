@@ -3,6 +3,7 @@ mod commands;
 pub mod core;
 mod notifications;
 pub mod providers;
+pub mod refresh;
 pub mod settings;
 mod single_instance;
 pub mod sound;
@@ -17,8 +18,6 @@ use tauri::{
     Emitter, Manager, WindowEvent,
 };
 
-use crate::core::provider::{FetchContext, ProviderId};
-use crate::core::usage_snapshot::ProviderFetchResult;
 use crate::notifications::NotificationTracker;
 use crate::state::AppState;
 use crate::tray::renderer;
@@ -85,62 +84,9 @@ async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Perform a full refresh of all enabled providers
+/// Perform a full refresh of all enabled providers (delegates to shared module)
 async fn refresh_all_providers(app_state: &AppState, app_handle: &tauri::AppHandle) {
-    let settings = app_state.settings.read().await.clone();
-    let http_client = reqwest::Client::new();
-
-    for id in ProviderId::all() {
-        if !settings.is_provider_enabled(id) {
-            continue;
-        }
-
-        let ctx = FetchContext {
-            source_mode: settings.get_source_mode(id),
-            manual_cookie: settings.get_manual_cookie(id).cloned(),
-            api_key: settings.get_api_key(id).cloned(),
-        };
-
-        let provider = providers::create_provider(*id);
-        let result = match provider.fetch_usage(&ctx).await {
-            Ok(usage) => ProviderFetchResult {
-                provider_id: format!("{:?}", id).to_lowercase(),
-                provider_name: id.display_name().to_string(),
-                usage: Some(usage),
-                cost: None,
-                error: None,
-                is_stale: false,
-            },
-            Err(e) => {
-                tracing::warn!("Failed to fetch {}: {}", id.display_name(), e);
-                ProviderFetchResult {
-                    provider_id: format!("{:?}", id).to_lowercase(),
-                    provider_name: id.display_name().to_string(),
-                    usage: None,
-                    cost: None,
-                    error: Some(e.to_string()),
-                    is_stale: true,
-                }
-            }
-        };
-
-        let mut snapshots = app_state.snapshots.write().await;
-        snapshots.insert(*id, result);
-    }
-
-    // Fetch status pages
-    for id in ProviderId::all() {
-        if !settings.is_provider_enabled(id) {
-            continue;
-        }
-        if let Some(status) = status::fetch_statuspage(&http_client, *id).await {
-            let mut statuses = app_state.statuses.write().await;
-            statuses.insert(*id, status);
-        }
-    }
-
-    // Emit event so the frontend updates
-    let _ = app_handle.emit("usage-updated", ());
+    refresh::refresh_all_providers(app_state, app_handle).await;
 }
 
 /// Register global shortcut to toggle the window
@@ -211,6 +157,7 @@ pub fn run() {
             commands::get_provider_status,
             commands::get_available_providers,
             commands::open_url,
+            commands::export_diagnostics,
             start_copilot_device_flow,
             poll_copilot_device_flow,
             check_for_updates,
@@ -235,7 +182,7 @@ pub fn run() {
             let icon = Image::new_owned(initial_icon, 32, 32);
 
             // Build tray icon
-            let _tray = TrayIconBuilder::new()
+            let _tray = TrayIconBuilder::with_id("main")
                 .icon(icon)
                 .menu(&menu)
                 .tooltip("CodexBar - AI Usage Monitor")

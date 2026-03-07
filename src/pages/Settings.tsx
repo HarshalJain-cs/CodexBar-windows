@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
 import { useSettings } from "@/hooks/useSettings";
-import { getAvailableProviders } from "@/lib/api";
+import {
+  getAvailableProviders,
+  checkForUpdates,
+  exportDiagnostics,
+} from "@/lib/api";
+import { CopilotLoginDialog } from "@/components/CopilotLoginDialog";
 import type { ProviderInfo, Settings as SettingsType } from "@/lib/types";
 
 interface SettingsProps {
   onBack: () => void;
 }
 
-type Tab = "general" | "providers" | "display" | "about";
+type Tab = "general" | "providers" | "auth" | "display" | "about";
 
 export function Settings({ onBack }: SettingsProps) {
   const { settings, loading, updateSettings } = useSettings();
@@ -29,6 +34,7 @@ export function Settings({ onBack }: SettingsProps) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "general", label: "General" },
     { id: "providers", label: "Providers" },
+    { id: "auth", label: "Auth" },
     { id: "display", label: "Display" },
     { id: "about", label: "About" },
   ];
@@ -85,6 +91,13 @@ export function Settings({ onBack }: SettingsProps) {
             settings={settings}
             providers={availableProviders}
             onToggle={toggleProvider}
+          />
+        )}
+        {activeTab === "auth" && (
+          <AuthTab
+            settings={settings}
+            providers={availableProviders}
+            onUpdate={updateSettings}
           />
         )}
         {activeTab === "display" && (
@@ -221,6 +234,172 @@ function ProvidersTab({
   );
 }
 
+function AuthTab({
+  settings,
+  providers,
+  onUpdate,
+}: {
+  settings: SettingsType;
+  providers: ProviderInfo[];
+  onUpdate: (s: SettingsType) => void;
+}) {
+  const [copilotDialogOpen, setCopilotDialogOpen] = useState(false);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+
+  const getSourceMode = (id: string) => settings.providerSources[id] || "auto";
+  const setSourceMode = (id: string, mode: string) => {
+    onUpdate({
+      ...settings,
+      providerSources: { ...settings.providerSources, [id]: mode },
+    });
+  };
+
+  const getManualCookie = (id: string) => settings.manualCookies[id] || "";
+  const setManualCookie = (id: string, cookie: string) => {
+    const cookies = { ...settings.manualCookies };
+    if (cookie) {
+      cookies[id] = cookie;
+    } else {
+      delete cookies[id];
+    }
+    onUpdate({ ...settings, manualCookies: cookies });
+  };
+
+  const getAvailableModes = (p: ProviderInfo) => {
+    const modes = [{ value: "auto", label: "Auto" }];
+    if (p.supportsOauth) modes.push({ value: "oauth", label: "OAuth" });
+    if (p.supportsCookies) modes.push({ value: "web", label: "Web/Cookies" });
+    if (p.supportsCli) modes.push({ value: "cli", label: "CLI" });
+    if (p.supportsApiKey) modes.push({ value: "apikey", label: "API Key" });
+    return modes;
+  };
+
+  const getAuthHint = (p: ProviderInfo) => {
+    const methods: string[] = [];
+    if (p.supportsOauth) methods.push("OAuth");
+    if (p.supportsCookies) methods.push("Cookies");
+    if (p.supportsCli) methods.push("CLI");
+    if (p.supportsApiKey) methods.push("API Key");
+    return methods.join(" / ");
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] text-zinc-500 pb-1">
+        Configure how each provider authenticates. Most work automatically.
+      </p>
+      {providers.map((p) => {
+        const isExpanded = expandedProvider === p.id;
+        const currentMode = getSourceMode(p.id);
+        const modes = getAvailableModes(p);
+
+        return (
+          <div
+            key={p.id}
+            className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden"
+          >
+            {/* Provider header */}
+            <button
+              onClick={() => setExpandedProvider(isExpanded ? null : p.id)}
+              className="w-full flex items-center justify-between p-2.5 hover:bg-zinc-800/30 transition-colors"
+            >
+              <div className="text-left">
+                <div className="text-xs font-medium text-zinc-200">{p.name}</div>
+                <div className="text-[10px] text-zinc-500">{getAuthHint(p)}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
+                  {currentMode}
+                </span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`text-zinc-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+            </button>
+
+            {/* Expanded details */}
+            {isExpanded && (
+              <div className="px-3 pb-3 space-y-3 border-t border-zinc-800/50">
+                {/* Source mode selector */}
+                <div className="pt-2">
+                  <label className="text-[10px] text-zinc-400 block mb-1">Source mode</label>
+                  <div className="flex flex-wrap gap-1">
+                    {modes.map((m) => (
+                      <button
+                        key={m.value}
+                        onClick={() => setSourceMode(p.id, m.value)}
+                        className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                          currentMode === m.value
+                            ? "bg-blue-600 text-white"
+                            : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Manual cookie paste for cookie-based providers */}
+                {p.supportsCookies && (
+                  <div>
+                    <label className="text-[10px] text-zinc-400 block mb-1">
+                      Manual cookie (optional fallback)
+                    </label>
+                    <textarea
+                      value={getManualCookie(p.id)}
+                      onChange={(e) => setManualCookie(p.id, e.target.value)}
+                      placeholder="Paste cookie header value here..."
+                      rows={2}
+                      className="w-full bg-zinc-800 text-zinc-200 text-[10px] rounded px-2 py-1.5 border border-zinc-700 resize-none font-mono placeholder:text-zinc-600"
+                    />
+                    <p className="text-[9px] text-zinc-600 mt-0.5">
+                      Only needed if auto cookie extraction fails.
+                    </p>
+                  </div>
+                )}
+
+                {/* Copilot sign-in button */}
+                {p.id === "copilot" && (
+                  <button
+                    onClick={() => setCopilotDialogOpen(true)}
+                    className="w-full text-xs px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors border border-zinc-700"
+                  >
+                    Sign in with GitHub
+                  </button>
+                )}
+
+                {/* CLI-based providers: show instructions */}
+                {p.supportsCli && p.id !== "copilot" && (
+                  <p className="text-[9px] text-zinc-500">
+                    {p.id === "claude" && "OAuth: run `claude login` in terminal"}
+                    {p.id === "codex" && "OAuth: run `codex login` in terminal"}
+                    {p.id === "gemini" && "OAuth: run `gemini auth login` in terminal"}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <CopilotLoginDialog
+        open={copilotDialogOpen}
+        onClose={() => setCopilotDialogOpen(false)}
+        onSuccess={() => setCopilotDialogOpen(false)}
+      />
+    </div>
+  );
+}
+
 function DisplayTab({
   settings,
   onUpdate,
@@ -274,12 +453,40 @@ function DisplayTab({
 }
 
 function AboutTab() {
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [diagCopied, setDiagCopied] = useState(false);
+
+  const handleCheckUpdates = async () => {
+    setChecking(true);
+    setUpdateStatus(null);
+    try {
+      const result = await checkForUpdates();
+      setUpdateStatus(result ? result : "Up to date");
+    } catch (err) {
+      setUpdateStatus(`Error: ${err}`);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleExportDiagnostics = async () => {
+    try {
+      const diag = await exportDiagnostics();
+      // Copy to clipboard
+      navigator.clipboard.writeText(diag);
+      setDiagCopied(true);
+      setTimeout(() => setDiagCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to export diagnostics:", err);
+    }
+  };
+
   return (
-    <div className="space-y-3 text-center py-6">
-      <div className="text-3xl">📊</div>
+    <div className="space-y-3 text-center py-4">
       <div>
         <div className="text-sm font-semibold">CodexBar for Windows</div>
-        <div className="text-[10px] text-zinc-500 font-mono">v0.1.0</div>
+        <div className="text-[10px] text-zinc-500 font-mono">v0.2.0</div>
       </div>
       <p className="text-xs text-zinc-400 max-w-[280px] mx-auto">
         Monitor your AI coding assistant usage quotas from the system tray.
@@ -310,6 +517,34 @@ function AboutTab() {
           Based on CodexBar by steipete
         </a>
       </div>
+
+      {/* Check for updates */}
+      <div className="pt-2 space-y-2">
+        <button
+          onClick={handleCheckUpdates}
+          disabled={checking}
+          className="text-xs px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 transition-colors border border-zinc-700"
+        >
+          {checking ? "Checking..." : "Check for Updates"}
+        </button>
+        {updateStatus && (
+          <div className="text-[10px] text-zinc-400">{updateStatus}</div>
+        )}
+      </div>
+
+      {/* Export diagnostics */}
+      <div>
+        <button
+          onClick={handleExportDiagnostics}
+          className="text-xs px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors border border-zinc-700"
+        >
+          {diagCopied ? "Copied to clipboard!" : "Export Diagnostics"}
+        </button>
+        <p className="text-[9px] text-zinc-600 mt-1">
+          Copies redacted system info for troubleshooting
+        </p>
+      </div>
+
       <div className="text-[10px] text-zinc-600">MIT License</div>
     </div>
   );

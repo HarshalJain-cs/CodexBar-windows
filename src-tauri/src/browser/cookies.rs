@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::detection::{detect_browsers, BrowserType, DetectedBrowser};
+use super::detection::{detect_browsers, DetectedBrowser};
 
 /// Extract cookies for a given domain from installed browsers
 pub async fn extract_cookies_for_domain(domain: &str) -> Result<String, String> {

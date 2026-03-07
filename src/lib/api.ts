@@ -60,3 +60,7 @@ export async function setAutostart(enabled: boolean): Promise<void> {
 export async function getAutostart(): Promise<boolean> {
   return invoke<boolean>("get_autostart");
 }
+
+export async function exportDiagnostics(): Promise<string> {
+  return invoke<string>("export_diagnostics");
+}

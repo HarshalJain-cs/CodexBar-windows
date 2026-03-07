@@ -68,6 +68,10 @@ export interface ProviderInfo {
   name: string;
   dashboardUrl: string;
   hasStatusPage: boolean;
+  supportsOauth: boolean;
+  supportsCookies: boolean;
+  supportsCli: boolean;
+  supportsApiKey: boolean;
 }
 
 /** Copilot device flow response */

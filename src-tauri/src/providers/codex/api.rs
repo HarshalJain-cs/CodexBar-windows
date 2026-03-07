@@ -1,6 +1,6 @@
 use crate::core::provider::ProviderError;
 use crate::core::rate_window::RateWindow;
-use crate::core::usage_snapshot::{CostSnapshot, UsageSnapshot};
+use crate::core::usage_snapshot::UsageSnapshot;
 
 /// Fetch Codex usage via OAuth API
 /// Reads auth from ~/.codex/auth.json or CODEX_HOME env
