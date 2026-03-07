@@ -46,13 +46,13 @@ pub struct Settings {
     #[serde(default)]
     pub provider_refresh_intervals: HashMap<String, u64>,
     /// Theme: "dark", "light", or "system"
-    #[serde(default = "default_dark")]
+    #[serde(default = "default_light")]
     pub theme: String,
 }
 
 fn default_true() -> bool { true }
 fn default_stable() -> String { "stable".to_string() }
-fn default_dark() -> String { "dark".to_string() }
+fn default_light() -> String { "light".to_string() }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -78,7 +78,7 @@ impl Default for Settings {
             sound_enabled: true,
             update_channel: "stable".to_string(),
             provider_refresh_intervals: HashMap::new(),
-            theme: "dark".to_string(),
+            theme: "light".to_string(),
         }
     }
 }

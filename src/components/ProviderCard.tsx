@@ -1,6 +1,6 @@
 import type { ProviderUsage, ProviderStatus, UsageTrend } from "@/lib/types";
-import { getPacing } from "@/lib/types";
-import { providerColors, providerIcons } from "@/lib/colors";
+import { getPacing, getUsageLevel } from "@/lib/types";
+import { providerColors, providerIcons, usageLevelColors } from "@/lib/colors";
 import { ProgressBar } from "./ProgressBar";
 import { ResetCountdown } from "./ResetCountdown";
 import { openUrl, refreshProvider } from "@/lib/api";
@@ -15,25 +15,33 @@ interface ProviderCardProps {
   privacyMode?: boolean;
 }
 
-const trendIndicators: Record<string, { arrow: string; color: string; label: string }> = {
-  rising: { arrow: "\u2191", color: "text-red-400", label: "Usage rising" },
-  falling: { arrow: "\u2193", color: "text-green-400", label: "Usage falling" },
-  steady: { arrow: "\u2192", color: "text-zinc-500", label: "Usage steady" },
+const sourceStyles: Record<string, { label: string; bg: string; color: string }> = {
+  oauth: { label: "OAuth", bg: "#edf2ff", color: "#4263eb" },
+  web: { label: "Web", bg: "#f3f0ff", color: "#7048e8" },
+  cli: { label: "CLI", bg: "#ebfbee", color: "#2b8a3e" },
+  apikey: { label: "Key", bg: "#fff9db", color: "#e67700" },
 };
 
-const sourceLabels: Record<string, { label: string; color: string }> = {
-  oauth: { label: "OAuth", color: "text-blue-400 bg-blue-950/50 border-blue-900/30" },
-  web: { label: "Web", color: "text-purple-400 bg-purple-950/50 border-purple-900/30" },
-  cli: { label: "CLI", color: "text-emerald-400 bg-emerald-950/50 border-emerald-900/30" },
-  apikey: { label: "Key", color: "text-amber-400 bg-amber-950/50 border-amber-900/30" },
+const statusDotColors: Record<string, string> = {
+  operational: "#40c057",
+  degradedPerformance: "#fab005",
+  partialOutage: "#fd7e14",
+  majorOutage: "#fa5252",
+  unknown: "#868e96",
 };
 
-const statusConfig: Record<string, { dot: string; text: string }> = {
-  operational: { dot: "bg-green-500", text: "text-green-500/60" },
-  degradedPerformance: { dot: "bg-yellow-500", text: "text-yellow-500/60" },
-  partialOutage: { dot: "bg-orange-500", text: "text-orange-500/60" },
-  majorOutage: { dot: "bg-red-500 animate-pulse", text: "text-red-400/80" },
-  unknown: { dot: "bg-zinc-500", text: "text-zinc-500/60" },
+const trendConfig: Record<string, { arrow: string; color: string; label: string }> = {
+  rising: { arrow: "\u2191", color: "#fa5252", label: "Usage rising" },
+  falling: { arrow: "\u2193", color: "#40c057", label: "Usage falling" },
+  steady: { arrow: "\u2192", color: "#868e96", label: "Steady" },
+};
+
+const dashboardUrls: Record<string, string> = {
+  codex: "https://platform.openai.com/usage",
+  claude: "https://claude.ai/settings/usage",
+  cursor: "https://www.cursor.com/settings",
+  gemini: "https://aistudio.google.com",
+  copilot: "https://github.com/settings/copilot",
 };
 
 export function ProviderCard({
@@ -44,7 +52,7 @@ export function ProviderCard({
   resetTimeFormat = "relative",
   privacyMode = false,
 }: ProviderCardProps) {
-  const color = providerColors[provider.providerId] || "#71717a";
+  const color = providerColors[provider.providerId] || "#868e96";
   const icon = providerIcons[provider.providerId] || "\u{1F4CA}";
   const usage = provider.usage;
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -60,59 +68,92 @@ export function ProviderCard({
     }
   };
 
-  const dashboardUrls: Record<string, string> = {
-    codex: "https://platform.openai.com/usage",
-    claude: "https://claude.ai/settings/usage",
-    cursor: "https://www.cursor.com/settings",
-    gemini: "https://aistudio.google.com",
-    copilot: "https://github.com/settings/copilot",
-  };
-
-  // Pacing for session window
   const sessionPacing = usage ? getPacing(usage.primary) : null;
   const weeklyPacing = usage?.secondary ? getPacing(usage.secondary) : null;
 
-  // Auth source badge
   const source = usage?.sourceLabel?.toLowerCase() || "";
-  const sourceBadge = sourceLabels[source];
+  const sourceBadge = sourceStyles[source];
 
-  // Status config
-  const statusStyle = status ? statusConfig[status.level] || statusConfig.unknown : null;
   const isOutage = status && (status.level === "partialOutage" || status.level === "majorOutage");
 
+  // Primary usage display
+  const primaryPercent = usage?.primary.usedPercent ?? 0;
+  const primaryLevel = getUsageLevel(primaryPercent);
+  const primaryColor = usageLevelColors[primaryLevel];
+  const displayPercent = showAsUsed ? primaryPercent : Math.max(0, 100 - primaryPercent);
+
   return (
-    <div className={`rounded-xl border ${isOutage ? "border-red-900/50" : "border-zinc-800/80"} bg-gradient-to-b from-zinc-900/90 to-zinc-900/60 p-3.5 space-y-2.5 backdrop-blur-sm hover:border-zinc-700/60 transition-colors`}>
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg leading-none">{icon}</span>
-          <span className="text-sm font-semibold tracking-tight" style={{ color }}>
-            {provider.providerName}
-          </span>
-          {usage?.accountPlan && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 font-medium">
-              {usage.accountPlan}
-            </span>
-          )}
-          {sourceBadge && (
-            <span className={`text-[9px] px-1.5 py-0.5 rounded border font-medium ${sourceBadge.color}`}>
-              {sourceBadge.label}
-            </span>
-          )}
+    <div className={`cb-card ${isOutage ? "cb-card-outage" : ""} animate-fade-in`} style={{ padding: '14px' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
+            style={{ background: `${color}15`, border: `1px solid ${color}25` }}
+          >
+            {icon}
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                {provider.providerName}
+              </span>
+              {usage?.accountPlan && (
+                <span className="cb-badge" style={{ fontSize: 9 }}>
+                  {usage.accountPlan}
+                </span>
+              )}
+              {sourceBadge && (
+                <span
+                  className="cb-badge"
+                  style={{ fontSize: 9, background: sourceBadge.bg, color: sourceBadge.color, borderColor: `${sourceBadge.color}20` }}
+                >
+                  {sourceBadge.label}
+                </span>
+              )}
+            </div>
+            {usage && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[18px] font-bold font-mono tabular-nums" style={{ color: primaryColor, lineHeight: 1 }}>
+                  {displayPercent.toFixed(0)}%
+                </span>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  {showAsUsed ? "used" : "left"}
+                </span>
+                {trend?.trend && trendConfig[trend.trend] && (
+                  <span
+                    className="text-xs font-semibold ml-0.5"
+                    style={{ color: trendConfig[trend.trend].color }}
+                    title={trendConfig[trend.trend].label}
+                  >
+                    {trendConfig[trend.trend].arrow}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          {statusStyle && (
+        <div className="flex items-center gap-1">
+          {status && (
             <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${statusStyle.dot}`}
-              title={status?.description}
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${status.level === "majorOutage" ? "animate-pulse" : ""}`}
+              style={{ background: statusDotColors[status.level] || statusDotColors.unknown }}
+              title={status.description}
             />
           )}
           <button
             onClick={handleRefresh}
-            className={`text-zinc-500 hover:text-zinc-300 transition-all p-0.5 ${isRefreshing ? "animate-spin" : ""}`}
+            className="p-1 rounded-md transition-all"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
             title="Refresh"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={isRefreshing ? "animate-spin" : ""}
+            >
               <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
               <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
@@ -122,97 +163,87 @@ export function ProviderCard({
         </div>
       </div>
 
-      {/* Status warning banner */}
+      {/* Outage banner */}
       {isOutage && status && (
-        <div className="text-[10px] text-red-400/80 bg-red-950/20 rounded-md px-2 py-1 border border-red-900/20 flex items-center gap-1.5">
-          <span className={`inline-block w-1.5 h-1.5 rounded-full ${statusStyle!.dot}`} />
+        <div
+          className="flex items-center gap-2 rounded-lg px-3 py-2 mb-3 text-[11px] font-medium"
+          style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 20%, transparent)' }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background: 'var(--danger)' }} />
           {status.description}
         </div>
       )}
 
       {/* Error state */}
       {provider.error && !usage && (
-        <div className="text-xs text-red-400/80 bg-red-950/30 rounded-lg px-2.5 py-2 border border-red-900/30">
+        <div
+          className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[11px]"
+          style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 15%, transparent)' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
           {provider.error}
         </div>
       )}
 
       {/* Usage bars */}
       {usage && (
-        <div className="space-y-1.5">
-          {/* Session usage */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Session</span>
-                {trend?.trend && trendIndicators[trend.trend] && (
-                  <span
-                    className={`text-[10px] ${trendIndicators[trend.trend].color}`}
-                    title={trendIndicators[trend.trend].label}
-                  >
-                    {trendIndicators[trend.trend].arrow}
-                  </span>
-                )}
-              </div>
+        <div className="space-y-3">
+          {/* Session */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                Session
+              </span>
               {sessionPacing && (
-                <span className="text-[10px] text-zinc-500" title={sessionPacing.label}>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }} title={sessionPacing.label}>
                   {sessionPacing.arrow} {sessionPacing.label}
                 </span>
               )}
             </div>
-            <ProgressBar
-              percent={usage.primary.usedPercent}
-              showAsUsed={showAsUsed}
-            />
-            <ResetCountdown
-              resetsAt={usage.primary.resetsAt}
-              format={resetTimeFormat}
-              description={usage.primary.resetDescription}
-            />
+            <ProgressBar percent={usage.primary.usedPercent} showAsUsed={showAsUsed} />
+            <ResetCountdown resetsAt={usage.primary.resetsAt} format={resetTimeFormat} description={usage.primary.resetDescription} />
           </div>
 
-          {/* Weekly usage */}
+          {/* Weekly */}
           {usage.secondary && (
-            <div className="space-y-1 pt-0.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Weekly</span>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  Weekly
+                </span>
                 {weeklyPacing && (
-                  <span className="text-[10px] text-zinc-500" title={weeklyPacing.label}>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }} title={weeklyPacing.label}>
                     {weeklyPacing.arrow} {weeklyPacing.label}
                   </span>
                 )}
               </div>
-              <ProgressBar
-                percent={usage.secondary.usedPercent}
-                thin
-                showAsUsed={showAsUsed}
-              />
-              <ResetCountdown
-                resetsAt={usage.secondary.resetsAt}
-                format={resetTimeFormat}
-                description={usage.secondary.resetDescription}
-              />
+              <ProgressBar percent={usage.secondary.usedPercent} thin showAsUsed={showAsUsed} />
+              <ResetCountdown resetsAt={usage.secondary.resetsAt} format={resetTimeFormat} description={usage.secondary.resetDescription} />
             </div>
           )}
 
-          {/* Model-specific usage */}
+          {/* Model-specific */}
           {usage.modelSpecific && (
-            <div className="space-y-1 pt-0.5">
-              <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Model</span>
-              <ProgressBar
-                percent={usage.modelSpecific.usedPercent}
-                thin
-                showAsUsed={showAsUsed}
-              />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  Model limit
+                </span>
+              </div>
+              <ProgressBar percent={usage.modelSpecific.usedPercent} thin showAsUsed={showAsUsed} />
             </div>
           )}
         </div>
       )}
 
-      {/* Account info + dashboard link */}
-      <div className="flex items-center justify-between pt-0.5">
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-3 pt-2.5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
         {usage?.accountEmail && !privacyMode ? (
-          <span className="text-[10px] text-zinc-600 truncate max-w-[200px]">
+          <span className="text-[10px] truncate max-w-[180px]" style={{ color: 'var(--text-muted)' }}>
             {usage.accountEmail}
             {usage.accountOrg && ` \u00B7 ${usage.accountOrg}`}
           </span>
@@ -221,19 +252,22 @@ export function ProviderCard({
         )}
         <button
           onClick={() => openUrl(dashboardUrls[provider.providerId] || "#")}
-          className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-0.5"
+          className="flex items-center gap-1 text-[10px] font-medium transition-colors"
+          style={{ color: 'var(--accent)' }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
         >
           Dashboard
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7 17L17 7M17 7H7M17 7v10" />
           </svg>
         </button>
       </div>
 
-      {/* Stale indicator */}
-      {provider.isStale && (
-        <div className="text-[9px] text-amber-500/60 flex items-center gap-1">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500/40" />
+      {/* Stale */}
+      {provider.isStale && !provider.error && (
+        <div className="flex items-center gap-1.5 mt-2 text-[9px] font-medium" style={{ color: 'var(--warning)' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--warning)', opacity: 0.6 }} />
           Data may be outdated
         </div>
       )}

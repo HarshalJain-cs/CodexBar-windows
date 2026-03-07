@@ -183,7 +183,7 @@ export const mockSettings: Settings = {
   soundEnabled: true,
   updateChannel: "stable",
   providerRefreshIntervals: {},
-  theme: "dark",
+  theme: "light",
 };
 
 export const mockProviderInfos: ProviderInfo[] = [

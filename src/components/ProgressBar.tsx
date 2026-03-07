@@ -12,36 +12,30 @@ export function ProgressBar({ percent, label, thin, showAsUsed }: ProgressBarPro
   const level = getUsageLevel(percent);
   const color = usageLevelColors[level];
   const display = showAsUsed ? percent : Math.max(0, 100 - percent);
-  const height = thin ? "h-1.5" : "h-2.5";
+  const height = thin ? 5 : 8;
 
   return (
     <div className="w-full">
       {label && (
-        <div className="flex justify-between mb-1">
-          <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">{label}</span>
-          <span className="text-[11px] font-mono tabular-nums" style={{ color }}>
+        <div className="flex justify-between mb-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+            {label}
+          </span>
+          <span className="text-[11px] font-semibold font-mono tabular-nums" style={{ color }}>
             {display.toFixed(0)}%{showAsUsed ? " used" : " left"}
           </span>
         </div>
       )}
-      <div className={`w-full ${height} rounded-full bg-zinc-800/80 overflow-hidden`}>
+      <div className="cb-progress-track" style={{ height }}>
         <div
-          className={`${height} rounded-full transition-all duration-700 ease-out relative`}
+          className="cb-progress-fill"
           style={{
-            width: `${percent}%`,
+            width: `${Math.min(100, percent)}%`,
+            height,
             backgroundColor: color,
-            boxShadow: percent > 80 ? `0 0 8px ${color}40` : undefined,
+            boxShadow: percent > 80 ? `0 0 12px ${color}50` : undefined,
           }}
-        >
-          {!thin && percent > 5 && (
-            <div
-              className="absolute inset-0 rounded-full opacity-30"
-              style={{
-                background: `linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%)`,
-              }}
-            />
-          )}
-        </div>
+        />
       </div>
     </div>
   );

@@ -26,9 +26,7 @@ export function ResetCountdown({ resetsAt, format = "relative", description }: R
       }
 
       if (format === "absolute") {
-        setText(
-          `Resets at ${reset.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-        );
+        setText(`Resets at ${reset.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
         return;
       }
 
@@ -46,11 +44,19 @@ export function ResetCountdown({ resetsAt, format = "relative", description }: R
     };
 
     update();
-    const interval = setInterval(update, 30000); // Update every 30s
+    const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, [resetsAt, format, description]);
 
   if (!text) return null;
 
-  return <span className="text-[10px] text-zinc-500">{text}</span>;
+  return (
+    <div className="flex items-center gap-1 mt-0.5">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--text-muted)' }}>
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{text}</span>
+    </div>
+  );
 }
