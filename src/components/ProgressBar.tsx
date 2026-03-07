@@ -12,16 +12,16 @@ export function ProgressBar({ percent, label, thin, showAsUsed }: ProgressBarPro
   const level = getUsageLevel(percent);
   const color = usageLevelColors[level];
   const display = showAsUsed ? percent : Math.max(0, 100 - percent);
-  const height = thin ? 5 : 8;
+  const height = thin ? 6 : 10;
 
   return (
     <div className="w-full">
       {label && (
         <div className="flex justify-between mb-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
             {label}
           </span>
-          <span className="text-[11px] font-semibold font-mono tabular-nums" style={{ color }}>
+          <span className="text-xs font-semibold font-mono tabular-nums" style={{ color }}>
             {display.toFixed(0)}%{showAsUsed ? " used" : " left"}
           </span>
         </div>

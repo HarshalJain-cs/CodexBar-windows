@@ -26,7 +26,7 @@ export function MainWindow({ onOpenSettings }: MainWindowProps) {
   );
 
   return (
-    <div className="min-h-screen flex flex-col p-3" style={{ background: 'var(--bg-base)' }}>
+    <div className="min-h-screen flex flex-col p-4" style={{ background: 'var(--bg-base)' }}>
       <HeaderBar
         lastUpdated={lastUpdated}
         loading={loading}
@@ -34,21 +34,23 @@ export function MainWindow({ onOpenSettings }: MainWindowProps) {
         onOpenSettings={onOpenSettings}
       />
 
-      <div className="flex-1 overflow-y-auto py-2.5 space-y-2.5">
+      <div className="flex-1 overflow-y-auto py-3">
         {enabledProviders.length === 0 && !loading ? (
           <EmptyState onOpenSettings={onOpenSettings} />
         ) : (
-          enabledProviders.map((provider) => (
-            <ProviderCard
-              key={provider.providerId}
-              provider={provider}
-              status={statuses[provider.providerId]}
-              trend={trends[provider.providerId]}
-              showAsUsed={showAsUsed}
-              resetTimeFormat={resetTimeFormat}
-              privacyMode={privacyMode}
-            />
-          ))
+          <div className="grid grid-cols-3 gap-3">
+            {enabledProviders.map((provider) => (
+              <ProviderCard
+                key={provider.providerId}
+                provider={provider}
+                status={statuses[provider.providerId]}
+                trend={trends[provider.providerId]}
+                showAsUsed={showAsUsed}
+                resetTimeFormat={resetTimeFormat}
+                privacyMode={privacyMode}
+              />
+            ))}
+          </div>
         )}
 
         {loading && providers.length === 0 && (
@@ -61,7 +63,7 @@ export function MainWindow({ onOpenSettings }: MainWindowProps) {
             >
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Fetching usage data...</span>
+            <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Fetching usage data...</span>
           </div>
         )}
       </div>

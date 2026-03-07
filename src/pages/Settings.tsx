@@ -35,7 +35,7 @@ export function Settings({ onBack }: SettingsProps) {
   if (loading || !settings) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading settings...</span>
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading settings...</span>
       </div>
     );
   }
@@ -48,36 +48,37 @@ export function Settings({ onBack }: SettingsProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-3" style={{ background: 'var(--bg-base)' }}>
+    <div className="min-h-screen flex flex-col p-4" style={{ background: 'var(--bg-base)' }}>
       {/* Header */}
-      <div className="flex items-center gap-2.5 pb-3 mb-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="flex items-center gap-3 pb-4 mb-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <button
           onClick={onBack}
-          className="p-1.5 rounded-lg transition-all"
+          className="p-2 rounded-lg transition-all"
           style={{ color: 'var(--text-tertiary)' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Settings</h1>
+        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Settings</h1>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0.5 mb-3 p-0.5 rounded-lg" style={{ background: 'var(--bg-overlay)' }}>
+      {/* Tab Navigation - Big */}
+      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: 'var(--bg-overlay)' }}>
         {tabMeta.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className="flex-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-all"
+            className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg transition-all"
             style={{
               background: activeTab === tab.id ? 'var(--bg-card)' : 'transparent',
               color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
               boxShadow: activeTab === tab.id ? 'var(--shadow-sm)' : 'none',
             }}
           >
+            <span className="mr-1.5">{tab.icon}</span>
             {tab.label}
           </button>
         ))}
@@ -113,7 +114,7 @@ function GeneralTab({ settings, onUpdate }: { settings: SettingsType; onUpdate: 
         <select
           value={settings.refreshIntervalSecs}
           onChange={(e) => onUpdate({ ...settings, refreshIntervalSecs: Number(e.target.value) })}
-          className="cb-input text-[11px]"
+          className="cb-input text-sm"
         >
           {intervals.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
         </select>
@@ -137,9 +138,9 @@ function GeneralTab({ settings, onUpdate }: { settings: SettingsType; onUpdate: 
             type="range" min={50} max={95} step={5}
             value={settings.warningThreshold}
             onChange={(e) => onUpdate({ ...settings, warningThreshold: Number(e.target.value) })}
-            className="w-20 accent-orange-500"
+            className="w-24 accent-orange-500"
           />
-          <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-tertiary)' }}>
+          <span className="text-sm font-mono w-8 text-right" style={{ color: 'var(--text-tertiary)' }}>
             {settings.warningThreshold}%
           </span>
         </div>
@@ -151,16 +152,16 @@ function GeneralTab({ settings, onUpdate }: { settings: SettingsType; onUpdate: 
             type="range" min={80} max={100} step={5}
             value={settings.criticalThreshold}
             onChange={(e) => onUpdate({ ...settings, criticalThreshold: Number(e.target.value) })}
-            className="w-20 accent-red-500"
+            className="w-24 accent-red-500"
           />
-          <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-tertiary)' }}>
+          <span className="text-sm font-mono w-8 text-right" style={{ color: 'var(--text-tertiary)' }}>
             {settings.criticalThreshold}%
           </span>
         </div>
       </SettingRow>
 
       <SettingRow label="Keyboard shortcut">
-        <span className="cb-badge font-mono">{settings.globalShortcut}</span>
+        <span className="cb-badge text-sm font-mono">{settings.globalShortcut}</span>
       </SettingRow>
     </div>
   );
@@ -186,25 +187,25 @@ function ProvidersTab({ settings, providers, onToggle, onUpdate }: {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {providers.map((p) => {
         const enabled = settings.enabledProviders.includes(p.id);
         return (
-          <div key={p.id} className="cb-card" style={{ padding: '12px' }}>
+          <div key={p.id} className="cb-card" style={{ padding: '14px' }}>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</div>
-                <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{p.id}</div>
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{p.id}</div>
               </div>
               <Toggle checked={enabled} onChange={() => onToggle(p.id)} />
             </div>
             {enabled && (
-              <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Refresh</span>
+              <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Refresh</span>
                 <select
                   value={getInterval(p.id)}
                   onChange={(e) => setInterval(p.id, Number(e.target.value))}
-                  className="cb-input text-[10px] py-0.5 px-1.5"
+                  className="cb-input text-xs py-1 px-2"
                 >
                   {refreshOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -246,8 +247,8 @@ function AuthTab({ settings, providers, onUpdate }: {
   };
 
   return (
-    <div className="space-y-2">
-      <p className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>
+    <div className="space-y-3">
+      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
         Configure authentication method for each provider.
       </p>
       {providers.map((p) => {
@@ -259,21 +260,21 @@ function AuthTab({ settings, providers, onUpdate }: {
           <div key={p.id} className="cb-card overflow-hidden">
             <button
               onClick={() => setExpandedProvider(isExpanded ? null : p.id)}
-              className="w-full flex items-center justify-between p-3 transition-colors"
+              className="w-full flex items-center justify-between p-3.5 transition-colors"
               style={{ background: isExpanded ? 'var(--bg-hover)' : 'transparent' }}
               onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--bg-hover)'; }}
               onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'transparent'; }}
             >
               <div className="text-left">
-                <div className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</div>
-                <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   {[p.supportsOauth && "OAuth", p.supportsCookies && "Cookies", p.supportsCli && "CLI", p.supportsApiKey && "API Key"].filter(Boolean).join(" / ")}
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="cb-badge font-mono">{currentMode}</span>
+                <span className="cb-badge text-xs font-mono">{currentMode}</span>
                 <svg
-                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                   style={{ color: 'var(--text-muted)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
                 >
                   <path d="m6 9 6 6 6-6" />
@@ -282,15 +283,15 @@ function AuthTab({ settings, providers, onUpdate }: {
             </button>
 
             {isExpanded && (
-              <div className="px-3 pb-3 space-y-3 animate-fade-in" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="pt-2.5">
-                  <label className="text-[10px] font-semibold block mb-1.5" style={{ color: 'var(--text-tertiary)' }}>Source mode</label>
-                  <div className="flex flex-wrap gap-1">
+              <div className="px-3.5 pb-3.5 space-y-3 animate-fade-in" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="pt-3">
+                  <label className="text-xs font-semibold block mb-2" style={{ color: 'var(--text-tertiary)' }}>Source mode</label>
+                  <div className="flex flex-wrap gap-1.5">
                     {modes.map((m) => (
                       <button
                         key={m.value}
                         onClick={() => setSourceMode(p.id, m.value)}
-                        className="text-[10px] font-medium px-2.5 py-1 rounded-md transition-all"
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
                         style={{
                           background: currentMode === m.value ? 'var(--accent)' : 'var(--bg-overlay)',
                           color: currentMode === m.value ? 'white' : 'var(--text-secondary)',
@@ -305,15 +306,15 @@ function AuthTab({ settings, providers, onUpdate }: {
 
                 {p.supportsCookies && (
                   <div>
-                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-tertiary)' }}>Manual cookie</label>
+                    <label className="text-xs font-semibold block mb-1.5" style={{ color: 'var(--text-tertiary)' }}>Manual cookie</label>
                     <textarea
                       value={getManualCookie(p.id)}
                       onChange={(e) => setManualCookie(p.id, e.target.value)}
                       placeholder="Paste cookie header value..."
                       rows={2}
-                      className="cb-input w-full resize-none font-mono text-[10px]"
+                      className="cb-input w-full resize-none font-mono text-xs"
                     />
-                    <p className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Only needed if auto extraction fails.</p>
+                    <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Only needed if auto extraction fails.</p>
                   </div>
                 )}
 
@@ -324,7 +325,7 @@ function AuthTab({ settings, providers, onUpdate }: {
                 )}
 
                 {p.supportsCli && p.id !== "copilot" && (
-                  <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {p.id === "claude" && "Run `claude login` in terminal to authenticate"}
                     {p.id === "codex" && "Run `codex login` in terminal to authenticate"}
                     {p.id === "gemini" && "Run `gemini auth login` in terminal to authenticate"}
@@ -349,7 +350,7 @@ function DisplayTab({ settings, onUpdate }: { settings: SettingsType; onUpdate: 
         <select
           value={settings.theme}
           onChange={(e) => onUpdate({ ...settings, theme: e.target.value })}
-          className="cb-input text-[11px]"
+          className="cb-input text-sm"
         >
           <option value="light">Light</option>
           <option value="dark">Dark</option>
@@ -361,7 +362,7 @@ function DisplayTab({ settings, onUpdate }: { settings: SettingsType; onUpdate: 
         <select
           value={settings.showAsUsed ? "used" : "remaining"}
           onChange={(e) => onUpdate({ ...settings, showAsUsed: e.target.value === "used" })}
-          className="cb-input text-[11px]"
+          className="cb-input text-sm"
         >
           <option value="remaining">Remaining</option>
           <option value="used">Used</option>
@@ -372,7 +373,7 @@ function DisplayTab({ settings, onUpdate }: { settings: SettingsType; onUpdate: 
         <select
           value={settings.resetTimeFormat}
           onChange={(e) => onUpdate({ ...settings, resetTimeFormat: e.target.value })}
-          className="cb-input text-[11px]"
+          className="cb-input text-sm"
         >
           <option value="relative">Relative</option>
           <option value="absolute">Absolute</option>
@@ -421,42 +422,42 @@ function AboutTab() {
   };
 
   return (
-    <div className="flex flex-col items-center py-6 text-center animate-fade-in">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #4263eb, #7048e8)' }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+    <div className="flex flex-col items-center py-8 text-center animate-fade-in">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'linear-gradient(135deg, #4263eb, #7048e8)' }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
           <path d="M3 3v18h18" />
           <path d="M7 16l4-8 4 4 4-6" />
         </svg>
       </div>
-      <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>CodexBar for Windows</div>
-      <div className="text-[10px] font-mono mb-3" style={{ color: 'var(--text-muted)' }}>v0.2.0</div>
-      <p className="text-[11px] max-w-[260px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>CodexBar for Windows</div>
+      <div className="text-xs font-mono mb-4" style={{ color: 'var(--text-muted)' }}>v0.2.0</div>
+      <p className="text-sm max-w-[280px] mb-5" style={{ color: 'var(--text-tertiary)' }}>
         Monitor your AI coding assistant usage quotas from the system tray.
       </p>
 
-      <div className="flex gap-2 mb-4">
-        <a href="#" onClick={(e) => { e.preventDefault(); openUrl("https://github.com/HarshalJain-cs/CodexBar-windows"); }} className="text-[11px] font-medium" style={{ color: 'var(--accent)' }}>
+      <div className="flex gap-3 mb-5">
+        <a href="#" onClick={(e) => { e.preventDefault(); openUrl("https://github.com/HarshalJain-cs/CodexBar-windows"); }} className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
           GitHub
         </a>
         <span style={{ color: 'var(--text-muted)' }}>&middot;</span>
-        <a href="#" onClick={(e) => { e.preventDefault(); openUrl("https://github.com/steipete/CodexBar"); }} className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+        <a href="#" onClick={(e) => { e.preventDefault(); openUrl("https://github.com/steipete/CodexBar"); }} className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
           Based on CodexBar
         </a>
       </div>
 
-      <div className="flex flex-col gap-2 w-full max-w-[200px]">
-        <button onClick={handleCheckUpdates} disabled={checking} className="cb-btn w-full justify-center">
+      <div className="flex flex-col gap-2.5 w-full max-w-[220px]">
+        <button onClick={handleCheckUpdates} disabled={checking} className="cb-btn w-full justify-center text-sm">
           {checking ? "Checking..." : "Check for Updates"}
         </button>
-        {updateStatus && <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{updateStatus}</div>}
+        {updateStatus && <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{updateStatus}</div>}
 
-        <button onClick={handleExportDiagnostics} className="cb-btn w-full justify-center">
+        <button onClick={handleExportDiagnostics} className="cb-btn w-full justify-center text-sm">
           {diagCopied ? "Copied!" : "Export Diagnostics"}
         </button>
-        <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>Copies redacted info for troubleshooting</p>
+        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Copies redacted info for troubleshooting</p>
       </div>
 
-      <div className="text-[10px] mt-4" style={{ color: 'var(--text-muted)' }}>MIT License</div>
+      <div className="text-xs mt-5" style={{ color: 'var(--text-muted)' }}>MIT License</div>
     </div>
   );
 }
@@ -464,10 +465,10 @@ function AboutTab() {
 /* ========= Shared Components ========= */
 function SettingRow({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-2.5 px-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+    <div className="flex items-center justify-between py-3.5 px-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
       <div>
-        <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
-        {desc && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{desc}</p>}
+        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
+        {desc && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{desc}</p>}
       </div>
       {children}
     </div>

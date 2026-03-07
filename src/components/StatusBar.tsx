@@ -20,13 +20,13 @@ export function StatusBar({ statuses }: StatusBarProps) {
   );
 
   return (
-    <div className="px-1 pt-2.5 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+    <div className="pt-3 mt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
       <div className="flex items-center gap-2">
         <span
           className="w-2 h-2 rounded-full flex-shrink-0"
           style={{ background: hasIssue ? 'var(--warning)' : 'var(--success)' }}
         />
-        <span className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
           {hasIssue ? worstStatus.description : "All systems operational"}
         </span>
       </div>

@@ -51,12 +51,12 @@ export function ResetCountdown({ resetsAt, format = "relative", description }: R
   if (!text) return null;
 
   return (
-    <div className="flex items-center gap-1 mt-0.5">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--text-muted)' }}>
+    <div className="flex items-center gap-1 mt-1">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--text-muted)' }}>
         <circle cx="12" cy="12" r="10" />
         <polyline points="12 6 12 12 16 14" />
       </svg>
-      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{text}</span>
+      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{text}</span>
     </div>
   );
 }

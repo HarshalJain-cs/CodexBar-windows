@@ -11,7 +11,7 @@ function App() {
 
   // Apply theme to document root
   useEffect(() => {
-    const theme = settings?.theme ?? "dark";
+    const theme = settings?.theme ?? "light";
     if (theme === "system") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
