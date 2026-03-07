@@ -1,0 +1,474 @@
+Below are the **5 requested files** (README, PRD, Tech Stack, Implementation Plan, and a full “How it works” report) for a from-scratch “CodexBar-like” Windows+macOS project that supports the same provider list shown in Win‑CodexBar (15 providers) and keeps the “two-bar meter” tray concept, while upgrading UI/UX. The proposed Rust stack and key crates align with what Win‑CodexBar already proves out (tokio/reqwest/egui/tray-icon/windows/crypto/sqlite, etc.).
+
+***
+
+## 1) README.md
+
+```md
+# CodexBarX (Windows + macOS)
+
+CodexBarX is a lightweight system UI app (Windows tray + macOS menu bar) that keeps your AI coding provider usage limits visible while you work.[cite:17]
+
+This project is inspired by **CodexBar** (macOS) and the existing **Win-CodexBar** port, but is designed as a clean-room, from-scratch codebase with a refreshed UI and a provider-plugin architecture.[cite:17]
+
+## What it does
+
+- Shows a compact **two-bar meter** in the system UI for at-a-glance usage (e.g., session + weekly).[cite:17]
+- Lets you enable/disable providers, configure refresh intervals, and manage auth artifacts (OAuth tokens, cookies, CLI logins) from a Preferences window.[cite:17]
+- Exposes a CLI for scripting and automation (e.g., `usage` and `cost`).[cite:17]
+
+## Supported providers (initial target)
+
+Target parity with the provider list in Win-CodexBar:
+
+- Codex
+- Claude
+- Cursor
+- Gemini
+- Copilot
+- Antigravity
+- Windsurf
+- Zai
+- Kiro
+- Vertex AI
+- Augment
+- MiniMax
+- OpenCode
+- Kimi
+- Kimi K2
+
+(Provider coverage and auth methods vary; see HOW_IT_WORKS.md for details.)[cite:17]
+
+## UX goals
+
+- Minimal, readable tray/menu UI with meaningful colors and progressive disclosure.
+- Fast startup, low CPU/memory, and predictable refresh behavior.
+- Zero “web app in a window” feel (native controls, native window chrome).
+
+## Install
+
+### Windows
+
+- Download a release build (MSI/MSIX) from GitHub Releases (planned).
+- Or build from source (see Development).
+
+### macOS
+
+- Install via notarized DMG (planned).
+- Or build from source (see Development).
+
+## Development
+
+### Prerequisites
+
+- Rust (stable, edition 2021).[cite:20]
+- On Windows: MSVC toolchain recommended; GNU toolchain supported.
+- On macOS: Xcode command line tools.
+
+### Run (dev)
+
+```bash
+cargo run --bin codexbarx
+```
+
+### CLI usage
+
+```bash
+codexbarx usage -p claude
+codexbarx usage -p codex
+codexbarx usage -p all
+
+codexbarx cost -p codex
+```
+
+These commands are modeled after Win-CodexBar’s documented commands.[cite:17]
+
+## Privacy & security
+
+- On-device only: no analytics by default.
+- Reads only well-known locations (provider CLIs/config, browser cookie stores) when the corresponding provider is enabled.[cite:17]
+- Uses platform-native secret storage (Windows Credential Manager / DPAPI; macOS Keychain) for tokens and sensitive data.[cite:20]
+
+## Repository layout (proposed)
+
+```text
+apps/
+  codexbarx/          # tray/menu UI + preferences
+crates/
+  core/               # domain models, aggregation, scheduling
+  providers/          # provider adapters (one module per provider)
+  browser_cookies/    # cookie discovery + decryption (OS-specific)
+  cli/                # CLI commands
+  ui/                 # shared UI components + theming
+  storage/            # config, secure storage, caching
+  notify/             # notifications + threshold rules
+```
+
+## License
+
+MIT.
+```
+
+***
+
+## 2) PRD.md
+
+```md
+# Product Requirements Document (PRD): CodexBarX
+
+## 1. Purpose
+
+CodexBarX is a cross-platform system utility (Windows tray + macOS menu bar) that surfaces AI coding provider usage in a small, always-available UI, reducing the need to open provider dashboards.[cite:17]
+
+## 2. Goals
+
+- Provide at-a-glance visibility into usage limits (session, rolling window, weekly, monthly) across multiple providers.[cite:17]
+- Support a provider plugin model so new providers can be added without touching the UI shell.
+- Improve UI clarity and information design compared to existing ports, while preserving the “tiny bar” philosophy.
+- Maintain strict privacy: default on-device operation, minimal data access, transparent storage and permissions.[cite:17]
+
+## 3. Non-goals
+
+- Not a chat client or coding assistant.
+- Not a full observability dashboard (no long-term analytics by default).
+- Not a credential manager; it only stores what is required for provider usage APIs.
+
+## 4. Personas
+
+- **Solo developer**: wants quick usage feedback to avoid rate limits.
+- **Power user**: multiple providers (Codex/Claude/Gemini/Vertex AI), wants unified view.[cite:17]
+- **Team lead**: wants reproducible troubleshooting steps and CLI outputs for support.
+
+## 5. User stories
+
+- As a developer, I want to see my current session and weekly usage in the tray/menu so I can pace my usage.[cite:17]
+- As a power user, I want to enable only the providers I use to avoid unnecessary cookie/config reads.[cite:17]
+- As a privacy-focused user, I want a clear audit of what data sources are accessed per provider.
+- As a scripter, I want CLI commands to output JSON so I can integrate with scripts/alerts.[cite:17]
+
+## 6. Functional requirements
+
+### 6.1 System UI indicator
+
+- Tray/menu icon renders a dynamic “two-bar meter” (configurable metrics per bar).[cite:17]
+- Clicking opens a compact window: per-provider tiles with status, usage, and next refresh time.
+- Right-click menu: Open, Settings, Refresh now, Export diagnostics, Quit.
+
+### 6.2 Provider management
+
+- Provider list with enable/disable toggle, auth method hints, last successful refresh.[cite:17]
+- Refresh interval per provider and global default.[cite:17]
+
+### 6.3 Auth & data sources
+
+Support the auth methods in Win-CodexBar as a baseline:
+
+- OAuth/device flows where available (e.g., GitHub device flow for Copilot).[cite:17]
+- Provider CLIs (e.g., `codex`, `claude`, `gcloud`) when available.[cite:17]
+- Browser cookies for providers requiring web login (e.g., Claude/Cursor/Kimi), including automatic extraction from common browsers on Windows.[cite:17]
+
+### 6.4 CLI
+
+- `codexbarx usage -p <provider|all>`
+- `codexbarx cost -p <provider|all>`
+- JSON output mode for automation.
+
+CLI parity is modeled after Win-CodexBar’s documented commands.[cite:17]
+
+### 6.5 Preferences
+
+- Providers tab: enable/disable, test connection.
+- Cookies tab: auto-extraction status and manual paste fallback.[cite:17]
+- Display tab: bar mapping, colors, compact/expanded.
+- Alerts tab: thresholds (e.g., 80% of weekly), notification settings.
+- Advanced tab: logging level, diagnostics bundle export.
+
+### 6.6 Diagnostics
+
+- “Export diagnostics” creates a zip with config (redacted), logs, provider statuses.
+- Includes a privacy-safe “what was accessed” ledger.
+
+## 7. Non-functional requirements
+
+- Startup < 1s on a typical dev laptop.
+- Idle CPU near 0% and low memory footprint.
+- Network calls are rate limited, cached, and resilient to provider outages.
+- Safe storage: secrets stored in OS secure storage; config stored as human-readable TOML/JSON.
+
+## 8. UX / UI requirements (enhanced)
+
+- Use a modern layout: left sidebar for providers, right content panel.
+- Provide a “compact glance” window and a “details” view with charts.
+- Improve accessibility: keyboard navigation, readable contrast.
+
+## 9. Release criteria (v1)
+
+- Tray/menu indicator works reliably.
+- At least 5 key providers (Codex, Claude, Gemini, Copilot, Vertex AI) fully functional.
+- Preferences + CLI stable.
+- Signed builds and an update channel (opt-in).
+
+## 10. Risks
+
+- Provider API instability and undocumented changes.
+- Cookie extraction/decryption complexity and browser schema differences.[cite:17]
+- Auth flows can break with MFA or enterprise policies.
+```
+
+***
+
+## 3) TECH_STACK.md
+
+```md
+# Tech Stack: CodexBarX
+
+This stack is selected to match a from-scratch implementation while staying close to proven components in Win-CodexBar where it makes sense (async, HTTP, tray, GUI, cookie decryption).[cite:17][cite:20]
+
+## 1. Languages
+
+- Rust (core + UI shell), edition 2021 baseline.[cite:20]
+
+## 2. UI
+
+### Windows
+
+- System tray: `tray-icon` + menu events via `muda` and `crossbeam-channel`.[cite:20]
+- Message pump / window loop: `winit`.[cite:20]
+- Native UI: `eframe` / `egui` for fast, native-feeling GUI with persistence.[cite:20]
+- Charts: `egui_plot`.[cite:20]
+
+### macOS
+
+Option A (recommended for a single Rust codebase):
+- Use the same `eframe/egui` window code, and a platform tray implementation.
+
+Option B (max native feel):
+- SwiftUI shell + Rust core via FFI (more work, best macOS UX).
+
+## 3. Networking & async
+
+- Async runtime: `tokio`.[cite:20]
+- HTTP client: `reqwest` (rustls TLS, cookies).[cite:20]
+
+## 4. Data & config
+
+- Serialization: `serde`, `serde_json`, `toml`.[cite:20]
+- Time windows: `chrono`.[cite:20]
+- Paths: `directories` / `dirs`.[cite:20]
+
+## 5. Provider adapters
+
+- Each provider implemented as a module implementing a common `Provider` trait (async refresh, auth probe, parse usage).
+- Auth sources: CLI, OAuth, browser cookies, local config files (modeled after Win-CodexBar provider approaches).[cite:17]
+
+## 6. Browser cookies (Windows)
+
+- SQLite reading: `rusqlite` bundled.[cite:20]
+- Crypto: `aes-gcm`, `base64`.[cite:20]
+- Windows APIs: `windows` crate for DPAPI and credential access.[cite:20]
+
+Win-CodexBar explicitly targets automatic cookie extraction from Chrome/Edge/Brave/Firefox on Windows, which CodexBarX should support as well.[cite:17]
+
+## 7. Secure storage
+
+- `keyring` crate to access OS secure storage.[cite:20]
+
+## 8. CLI
+
+- `clap` for argument parsing and env support.[cite:20]
+
+## 9. Observability
+
+- `tracing` + `tracing-subscriber` (env filter, optional JSON logs).[cite:20]
+
+## 10. Packaging & updates
+
+- Windows: MSI/MSIX; optional WiX-based MSI pipeline (Win-CodexBar contains a `wix/` folder indicating MSI packaging patterns).[cite:18]
+- macOS: DMG + notarization.
+- Updates: signed update manifest with SHA-256 verification (`sha2`).[cite:20]
+
+## 11. CI/CD
+
+- GitHub Actions: build, test, lint, code signing, release artifact publishing.
+- Security scanning: dependency audit + SAST.
+```
+
+***
+
+## 4) IMPLEMENTATION_PLAN.md
+
+```md
+# Implementation Plan: CodexBarX
+
+## Milestone 0 — Repo bootstrap (Week 0)
+
+- Create mono-repo with `crates/` + `apps/` structure.
+- Establish CI (format, clippy, tests, release builds).
+- Set up versioning, changelog, release workflow.
+
+## Milestone 1 — Core domain + scheduler (Week 1)
+
+- Define `UsageMetric` model: (window type, used, limit, unit, updated_at).
+- Define `ProviderStatus`: (ok/degraded/error + reason).
+- Implement refresh scheduler with per-provider intervals and backoff.
+- Add caching layer (in-memory + persisted minimal cache).
+
+## Milestone 2 — Provider framework (Week 2)
+
+- Provider trait:
+  - `name()`, `capabilities()`, `auth_kind()`, `refresh(ctx) -> UsageSnapshot`
+  - `diagnostics() -> RedactedDiagnostics`
+- Implement provider registry + enable/disable.
+
+## Milestone 3 — Windows tray + UI shell (Week 3)
+
+- Tray icon rendering:
+  - Two-bar meter renderer (session + weekly by default), matching Win-CodexBar concept.[cite:17]
+- Minimal main window: provider tiles, refresh now.
+- Settings window: provider toggles, global refresh interval.
+
+## Milestone 4 — Auth adapters (Week 4)
+
+- CLI auth adapter: probe CLI availability and login status.
+- OAuth/device flow adapter (where applicable).
+- Browser cookie pipeline on Windows:
+  - Detect browser profiles.
+  - Read SQLite cookie DB.
+  - Decrypt using DPAPI + AES-GCM patterns used by Chromium browsers.[cite:17][cite:20]
+  - Provider-specific cookie extraction mapping.
+
+## Milestone 5 — Implement 5 priority providers (Week 5)
+
+Target providers for v1:
+
+- Codex (OAuth/CLI; session + weekly + credits).[cite:17]
+- Claude (OAuth/cookies/CLI; session 5h + weekly).[cite:17]
+- Gemini (gcloud OAuth; quota).[cite:17]
+- Copilot (GitHub device flow; usage).[cite:17]
+- Vertex AI (gcloud OAuth; cost tracking).[cite:17]
+
+## Milestone 6 — UI enhancement pass (Week 6)
+
+- New information architecture:
+  - “Glance” view: small card list.
+  - “Details” view: charts, history, refresh logs.
+- Add per-provider badges: auth source, staleness, warnings.
+- Theming: light/dark, high contrast.
+
+## Milestone 7 — CLI + JSON outputs (Week 7)
+
+- Commands modeled after Win-CodexBar:
+  - `usage` and `cost` with `-p` provider selector.[cite:17]
+- Add `--json` output mode.
+- Add `diagnostics` command to export a redacted bundle.
+
+## Milestone 8 — Packaging + release (Week 8)
+
+- Windows signing, MSI/MSIX.
+- macOS signing + notarization.
+- Auto-update channel (opt-in): signed manifest + hash verification (`sha2`).[cite:20]
+
+## Definition of done
+
+- Reliable tray/menu indicator.
+- Preferences window and provider toggles.
+- At least 5 providers complete.
+- Privacy ledger + diagnostics export.
+- Releases published and installable.
+```
+
+***
+
+## 5) HOW_IT_WORKS.md (complete report)
+
+```md
+# How CodexBarX Works (Full Report)
+
+## 1. Runtime model
+
+CodexBarX runs as a background process that periodically refreshes usage data from enabled providers, then renders a compact indicator in the Windows system tray or macOS menu bar.[cite:17]
+
+The app has two “surfaces”:
+
+- **Indicator**: a minimal two-bar meter intended for constant glanceability.[cite:17]
+- **Main UI**: a small window showing provider tiles, status, and details.
+
+## 2. Provider abstraction
+
+Each provider is implemented as an adapter with:
+
+- `auth_probe`: determine whether credentials exist and are valid.
+- `fetch_usage`: obtain current usage and limits.
+- `normalize`: map provider-specific fields into a common `UsageSnapshot`.
+
+This structure matches the multi-provider approach documented in Win-CodexBar (15 providers, each with a defined auth method and tracked metrics).[cite:17]
+
+## 3. Data sources & auth methods
+
+CodexBarX intentionally supports multiple acquisition strategies because providers differ in how they expose usage:
+
+1. **CLI-based**: read usage via official CLIs or local config (e.g., codex/claude/gcloud where applicable).[cite:17]
+2. **OAuth / Device flow**: interactive auth when providers support it (e.g., GitHub device flow for Copilot).[cite:17]
+3. **Browser cookie extraction**: for providers that rely on web sessions (Claude/Cursor/Kimi), pull cookies from local browser stores when the provider is enabled.[cite:17]
+
+Win-CodexBar documents automatic cookie extraction from Chrome, Edge, Brave, and Firefox on Windows, including decryption for DPAPI-encrypted cookie stores.[cite:17]
+
+## 4. Cookie extraction pipeline (Windows)
+
+Windows browsers store cookies in SQLite databases, with encryption in Chromium-based browsers.
+
+Pipeline:
+
+- Discover browser profiles (standard locations).
+- Read cookie rows from SQLite (`rusqlite`).[cite:20]
+- Decrypt:
+  - Use Windows DPAPI via the `windows` crate APIs where required.[cite:20]
+  - Use AES-GCM (`aes-gcm`) for Chromium encrypted blobs.[cite:20]
+- Provide a provider-specific cookie header to usage endpoints.
+
+Manual cookie paste is supported as a fallback, consistent with Win-CodexBar’s documented UX.[cite:17]
+
+## 5. Refresh, caching, and rate limits
+
+CodexBarX uses a refresh scheduler:
+
+- Per-provider intervals with jitter.
+- Backoff on failures.
+- Cache last successful snapshot and last error.
+
+This keeps the indicator responsive without spamming provider APIs.
+
+## 6. UI rendering
+
+CodexBarX uses:
+
+- `tray-icon` for the tray indicator and menus.[cite:20]
+- `winit` for the event loop/message pumping.[cite:20]
+- `eframe/egui` for the UI windows, with persisted UI state.[cite:20]
+
+The primary UI enhancement compared to existing ports is information design: clearer per-provider cards, explicit staleness, and a details panel with history charts (`egui_plot`).[cite:20]
+
+## 7. CLI and automation
+
+CodexBarX provides CLI commands modeled after Win-CodexBar:
+
+- `usage -p <provider|all>` for normalized usage snapshots.[cite:17]
+- `cost -p <provider|all>` for local cost tracking from logs (where supported).[cite:17]
+
+A `--json` flag is provided for script integration.
+
+## 8. Security and privacy
+
+- No telemetry by default.
+- Reads browser cookies only for enabled providers and only from known stores, consistent with Win-CodexBar’s privacy statement.[cite:17]
+- Uses OS secure storage (`keyring`) and Windows APIs where necessary.[cite:20]
+- Diagnostics export is redacted and includes a “what was accessed” ledger.
+
+## 9. Provider coverage targets
+
+CodexBarX aims to match the provider list documented in Win-CodexBar (15 providers), but prioritizes the most commonly used providers first (Codex, Claude, Gemini, Copilot, Vertex AI).[cite:17]
+```
+
+***
+
+If you want, I can also draft a **new UI spec** (screens list + layout + component inventory + theming tokens) that upgrades the existing egui UI while keeping the same tray behavior and provider toggles described in Win‑CodexBar.
