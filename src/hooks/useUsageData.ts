@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getAllUsage, refreshAll } from "@/lib/api";
+import { isTauri } from "@/lib/mockData";
 import type { ProviderUsage } from "@/lib/types";
 
 export function useUsageData() {
@@ -36,13 +36,16 @@ export function useUsageData() {
   useEffect(() => {
     fetchData();
 
-    const unlisten = listen("usage-updated", () => {
-      fetchData();
-    });
-
-    return () => {
-      unlisten.then((fn) => fn());
-    };
+    if (isTauri()) {
+      import("@tauri-apps/api/event").then(({ listen }) => {
+        const unlisten = listen("usage-updated", () => {
+          fetchData();
+        });
+        return () => {
+          unlisten.then((fn) => fn());
+        };
+      });
+    }
   }, [fetchData]);
 
   return { providers, loading, lastUpdated, refresh };

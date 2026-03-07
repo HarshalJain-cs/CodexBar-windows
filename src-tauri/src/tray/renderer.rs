@@ -62,6 +62,7 @@ pub fn create_bar_icon(session_percent: f64, weekly_percent: f64) -> Vec<u8> {
 }
 
 /// Create a loading animation frame
+#[allow(dead_code)]
 pub fn create_loading_icon(frame: usize) -> Vec<u8> {
     let size: usize = 32;
     let mut pixels = vec![0u8; size * size * 4];

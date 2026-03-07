@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getProviderStatus } from "@/lib/api";
+import { isTauri } from "@/lib/mockData";
 import type { ProviderStatus } from "@/lib/types";
 
 export function useProviderStatus() {
@@ -22,13 +22,16 @@ export function useProviderStatus() {
 
     fetchStatuses();
 
-    const unlisten = listen("usage-updated", () => {
-      fetchStatuses();
-    });
-
-    return () => {
-      unlisten.then((fn) => fn());
-    };
+    if (isTauri()) {
+      import("@tauri-apps/api/event").then(({ listen }) => {
+        const unlisten = listen("usage-updated", () => {
+          fetchStatuses();
+        });
+        return () => {
+          unlisten.then((fn) => fn());
+        };
+      });
+    }
   }, []);
 
   return statuses;

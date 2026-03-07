@@ -54,7 +54,7 @@ impl Provider for ClaudeProvider {
                 } else {
                     crate::browser::cookies::extract_cookies_for_domain("claude.ai")
                         .await
-                        .map_err(|e| ProviderError::AuthRequired(e))?
+                        .map_err(ProviderError::AuthRequired)?
                 };
 
                 web_api::fetch_claude_web(&cookie).await
@@ -65,7 +65,7 @@ impl Provider for ClaudeProvider {
                 } else {
                     crate::browser::cookies::extract_cookies_for_domain("claude.ai")
                         .await
-                        .map_err(|e| ProviderError::AuthRequired(e))?
+                        .map_err(ProviderError::AuthRequired)?
                 };
                 web_api::fetch_claude_web(&cookie).await
             }

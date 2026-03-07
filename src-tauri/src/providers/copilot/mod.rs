@@ -41,7 +41,7 @@ impl Provider for CopilotProvider {
             let store = crate::core::credentials::CredentialStore::new();
             store
                 .get("copilot_token")
-                .map_err(|e| ProviderError::Other(e))?
+                .map_err(ProviderError::Other)?
                 .ok_or_else(|| {
                     ProviderError::AuthRequired(
                         "No Copilot token. Use Settings to sign in with GitHub.".to_string(),

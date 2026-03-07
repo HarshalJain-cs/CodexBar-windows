@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// Loading animation patterns
 #[derive(Debug, Clone, Copy)]
 pub enum LoadingPattern {

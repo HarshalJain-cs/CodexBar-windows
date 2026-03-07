@@ -272,13 +272,14 @@ pub fn run() {
                 .build(app)?;
 
             // Hide window when it loses focus
-            let main_window = app.get_webview_window("main").unwrap();
-            let window_clone = main_window.clone();
-            main_window.on_window_event(move |event| {
-                if let WindowEvent::Focused(false) = event {
-                    let _ = window_clone.hide();
-                }
-            });
+            if let Some(main_window) = app.get_webview_window("main") {
+                let window_clone = main_window.clone();
+                main_window.on_window_event(move |event| {
+                    if let WindowEvent::Focused(false) = event {
+                        let _ = window_clone.hide();
+                    }
+                });
+            }
 
             // Register global shortcut from settings
             let settings = settings::Settings::load();

@@ -38,7 +38,7 @@ impl Provider for CursorProvider {
         } else {
             crate::browser::cookies::extract_cookies_for_domain("cursor.com")
                 .await
-                .map_err(|e| ProviderError::AuthRequired(e))?
+                .map_err(ProviderError::AuthRequired)?
         };
 
         api::fetch_cursor_usage(&cookie).await

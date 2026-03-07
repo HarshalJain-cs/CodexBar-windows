@@ -31,7 +31,7 @@ impl UsageHistory {
 
     /// Record a new usage data point
     pub fn record(&mut self, id: ProviderId, used_percent: f64) {
-        let points = self.entries.entry(id).or_insert_with(VecDeque::new);
+        let points = self.entries.entry(id).or_default();
         points.push_back(UsageHistoryPoint {
             timestamp: chrono::Utc::now().to_rfc3339(),
             used_percent,

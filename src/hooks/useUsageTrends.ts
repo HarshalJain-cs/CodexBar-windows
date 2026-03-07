@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getUsageTrends } from "@/lib/api";
+import { isTauri } from "@/lib/mockData";
 import type { UsageTrend } from "@/lib/types";
 
 export function useUsageTrends() {
@@ -22,13 +22,16 @@ export function useUsageTrends() {
 
     fetchTrends();
 
-    const unlisten = listen("usage-updated", () => {
-      fetchTrends();
-    });
-
-    return () => {
-      unlisten.then((fn) => fn());
-    };
+    if (isTauri()) {
+      import("@tauri-apps/api/event").then(({ listen }) => {
+        const unlisten = listen("usage-updated", () => {
+          fetchTrends();
+        });
+        return () => {
+          unlisten.then((fn) => fn());
+        };
+      });
+    }
   }, []);
 
   return trends;

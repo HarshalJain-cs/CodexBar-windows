@@ -19,7 +19,7 @@ export function HeaderBar({ lastUpdated, loading, onRefresh, onOpenSettings }: H
             CodexBar
           </h1>
         </div>
-        <span className="text-[9px] text-zinc-600 font-mono">v0.1.0</span>
+        <span className="text-[9px] text-zinc-600 font-mono">v0.2.0</span>
       </div>
 
       <div className="flex items-center gap-2">
