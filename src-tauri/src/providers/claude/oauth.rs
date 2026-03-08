@@ -67,13 +67,13 @@ fn parse_rate_window(
 ) -> Result<RateWindow, ProviderError> {
     let window = window.ok_or_else(|| ProviderError::Parse("Missing rate window".to_string()))?;
 
-    let used_percent = window
+    let raw_value = window
         .get("used_percent")
         .or_else(|| window.get("usedPercent"))
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
 
-    let mut rw = RateWindow::new(used_percent).with_window(default_minutes);
+    let mut rw = RateWindow::from_api_percent(raw_value).with_window(default_minutes);
 
     if let Some(reset_str) = window
         .get("resets_at")

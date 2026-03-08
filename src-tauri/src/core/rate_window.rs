@@ -25,6 +25,13 @@ impl RateWindow {
         }
     }
 
+    /// Create from an API value that might be a fraction (0.0-1.0) or percentage (0.0-100.0).
+    /// Values <= 1.0 are treated as fractions and multiplied by 100.
+    pub fn from_api_percent(value: f64) -> Self {
+        let pct = if value > 1.0 { value } else { value * 100.0 };
+        Self::new(pct)
+    }
+
     pub fn with_window(mut self, minutes: u32) -> Self {
         self.window_minutes = Some(minutes);
         self

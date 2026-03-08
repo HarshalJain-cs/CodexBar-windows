@@ -2,7 +2,7 @@ use crate::core::provider::ProviderError;
 use crate::core::rate_window::RateWindow;
 use crate::core::usage_snapshot::UsageSnapshot;
 
-/// Fetch Gemini usage via gcloud OAuth credentials
+/// Fetch Gemini usage via OAuth credentials
 pub async fn fetch_gemini_usage() -> Result<UsageSnapshot, ProviderError> {
     // Try to read Gemini CLI OAuth credentials
     let creds_path = dirs::home_dir()
@@ -23,7 +23,7 @@ pub async fn fetch_gemini_usage() -> Result<UsageSnapshot, ProviderError> {
         .and_then(|v| v.as_str())
         .ok_or_else(|| ProviderError::AuthRequired("No access token".to_string()))?;
 
-    // Try Gemini quota API
+    // Verify credentials by listing models
     let client = reqwest::Client::new();
     let resp = client
         .get("https://generativelanguage.googleapis.com/v1beta/models")
@@ -37,16 +37,51 @@ pub async fn fetch_gemini_usage() -> Result<UsageSnapshot, ProviderError> {
         ));
     }
 
-    // For now, return a basic snapshot since Gemini's quota API format varies
+    // Check for rate limit headers that might indicate usage
+    let rate_limit_remaining = resp
+        .headers()
+        .get("x-ratelimit-remaining")
+        .or_else(|| resp.headers().get("x-ratelimit-remaining-requests"))
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<f64>().ok());
+
+    let rate_limit_total = resp
+        .headers()
+        .get("x-ratelimit-limit")
+        .or_else(|| resp.headers().get("x-ratelimit-limit-requests"))
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<f64>().ok());
+
     let _json: serde_json::Value = resp
         .json()
         .await
         .map_err(|e| ProviderError::Parse(format!("Failed to parse: {}", e)))?;
 
-    // Basic parsing - Gemini's API doesn't always expose quota directly
-    let session = RateWindow::new(0.0)
-        .with_window(1440) // Daily
-        .with_description("Connected".to_string());
+    // Calculate usage from rate limit headers if available
+    let used_pct = match (rate_limit_remaining, rate_limit_total) {
+        (Some(remaining), Some(total)) if total > 0.0 => {
+            ((total - remaining) / total) * 100.0
+        }
+        _ => {
+            // No rate limit data available — return -1 to signal "connected but no data"
+            // The frontend can display "Connected" instead of a percentage
+            -1.0
+        }
+    };
+
+    let session = if used_pct < 0.0 {
+        // Connected but no quota data available
+        RateWindow::new(0.0)
+            .with_window(1440) // Daily
+            .with_description("Connected — no quota data available".to_string())
+    } else {
+        RateWindow::new(used_pct)
+            .with_window(1440) // Daily
+            .with_description(format!(
+                "{:.0}% of daily quota used",
+                used_pct
+            ))
+    };
 
     let mut snapshot = UsageSnapshot::new(session, "oauth");
     snapshot = snapshot.with_plan("Gemini".to_string());

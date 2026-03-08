@@ -55,27 +55,25 @@ fn parse_claude_web_usage(
     orgs: &serde_json::Value,
 ) -> Result<UsageSnapshot, ProviderError> {
     // Parse session window
-    let session_pct = usage
+    let session_raw = usage
         .get("daily_usage_percent")
         .or_else(|| usage.get("dailyUsagePercent"))
         .or_else(|| usage.get("five_hour_usage_percent"))
         .and_then(|v| v.as_f64())
-        .unwrap_or(0.0)
-        * 100.0;
+        .unwrap_or(0.0);
 
-    let session = RateWindow::new(session_pct.min(100.0)).with_window(300);
+    let session = RateWindow::from_api_percent(session_raw).with_window(300);
 
     // Parse weekly window
-    let weekly_pct = usage
+    let weekly_raw = usage
         .get("weekly_usage_percent")
         .or_else(|| usage.get("weeklyUsagePercent"))
-        .and_then(|v| v.as_f64())
-        .map(|v| v * 100.0);
+        .and_then(|v| v.as_f64());
 
     let mut snapshot = UsageSnapshot::new(session, "web");
 
-    if let Some(wp) = weekly_pct {
-        snapshot = snapshot.with_secondary(RateWindow::new(wp.min(100.0)).with_window(10080));
+    if let Some(wp) = weekly_raw {
+        snapshot = snapshot.with_secondary(RateWindow::from_api_percent(wp).with_window(10080));
     }
 
     // Extract account info from orgs

@@ -59,7 +59,7 @@ fn parse_codex_response(json: &serde_json::Value) -> Result<UsageSnapshot, Provi
         .get("primary_window")
         .or_else(|| rate_limit.get("primaryWindow"));
 
-    let session_pct = primary
+    let session_raw = primary
         .and_then(|w| {
             w.get("used_percent")
                 .or_else(|| w.get("usedPercent"))
@@ -75,7 +75,7 @@ fn parse_codex_response(json: &serde_json::Value) -> Result<UsageSnapshot, Provi
         })
         .unwrap_or(18000); // Default 5 hours
 
-    let mut session = RateWindow::new(session_pct * 100.0)
+    let mut session = RateWindow::from_api_percent(session_raw)
         .with_window((window_seconds / 60) as u32);
 
     if let Some(reset_str) = primary
@@ -92,18 +92,17 @@ fn parse_codex_response(json: &serde_json::Value) -> Result<UsageSnapshot, Provi
         .get("secondary_window")
         .or_else(|| rate_limit.get("secondaryWindow"));
 
-    let weekly_pct = secondary
+    let weekly_raw = secondary
         .and_then(|w| {
             w.get("used_percent")
                 .or_else(|| w.get("usedPercent"))
                 .and_then(|v| v.as_f64())
-        })
-        .map(|v| v * 100.0);
+        });
 
     let mut snapshot = UsageSnapshot::new(session, "oauth");
 
-    if let Some(wp) = weekly_pct {
-        let mut weekly = RateWindow::new(wp).with_window(10080);
+    if let Some(wp) = weekly_raw {
+        let mut weekly = RateWindow::from_api_percent(wp).with_window(10080);
         if let Some(reset_str) = secondary
             .and_then(|w| w.get("reset_at").or_else(|| w.get("resetAt")))
             .and_then(|v| v.as_str())

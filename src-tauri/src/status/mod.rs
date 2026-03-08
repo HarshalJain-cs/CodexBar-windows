@@ -4,7 +4,7 @@ use crate::core::provider::ProviderId;
 
 /// Status level from Statuspage.io
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum StatusLevel {
     Operational,
     DegradedPerformance,

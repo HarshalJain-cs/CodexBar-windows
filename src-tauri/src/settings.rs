@@ -48,17 +48,46 @@ pub struct Settings {
     /// Theme: "dark", "light", or "system"
     #[serde(default = "default_light")]
     pub theme: String,
+    /// View mode: "grid" or "compact"
+    #[serde(default = "default_grid")]
+    pub view_mode: String,
+    /// Provider display order
+    #[serde(default = "default_provider_order")]
+    pub provider_order: Vec<String>,
+    /// Notification type: "system", "in-app", or "both"
+    #[serde(default = "default_both")]
+    pub notification_type: String,
+    /// Notification sound: "default", "custom", or "none"
+    #[serde(default = "default_sound")]
+    pub notification_sound: String,
 }
 
 fn default_true() -> bool { true }
 fn default_stable() -> String { "stable".to_string() }
 fn default_light() -> String { "light".to_string() }
+fn default_grid() -> String { "grid".to_string() }
+fn default_both() -> String { "both".to_string() }
+fn default_sound() -> String { "default".to_string() }
+fn default_provider_order() -> Vec<String> {
+    vec![
+        "codex".to_string(), "claude".to_string(), "cursor".to_string(),
+        "gemini".to_string(), "copilot".to_string(), "windsurf".to_string(),
+        "kiro".to_string(), "augment".to_string(), "devin".to_string(),
+    ]
+}
 
 impl Default for Settings {
     fn default() -> Self {
         let mut enabled = HashSet::new();
         enabled.insert("claude".to_string());
         enabled.insert("codex".to_string());
+        enabled.insert("cursor".to_string());
+        enabled.insert("gemini".to_string());
+        enabled.insert("copilot".to_string());
+        enabled.insert("windsurf".to_string());
+        enabled.insert("kiro".to_string());
+        enabled.insert("augment".to_string());
+        enabled.insert("devin".to_string());
 
         Self {
             enabled_providers: enabled,
@@ -79,6 +108,10 @@ impl Default for Settings {
             update_channel: "stable".to_string(),
             provider_refresh_intervals: HashMap::new(),
             theme: "light".to_string(),
+            view_mode: "grid".to_string(),
+            provider_order: default_provider_order(),
+            notification_type: "both".to_string(),
+            notification_sound: "default".to_string(),
         }
     }
 }
