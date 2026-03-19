@@ -158,6 +158,7 @@ pub fn run() {
             commands::get_available_providers,
             commands::open_url,
             commands::export_diagnostics,
+            commands::update_tray_tooltip,
             commands::get_usage_trends,
             start_copilot_device_flow,
             poll_copilot_device_flow,

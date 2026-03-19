@@ -1,14 +1,17 @@
-import { AppSettings, ProviderId, SettingsTab } from '@/types';
+import { AppSettings, Provider, ProviderId, SettingsTab } from '@/types';
 import { useState, useRef } from 'react';
 import { ArrowLeft, Upload, Download, Bug, Shield, ShieldAlert, ShieldX, RefreshCw, CheckCircle2, XCircle, Key } from 'lucide-react';
 import NotificationPreview from './NotificationPreview';
 import ShortcutInput from './ShortcutInput';
+import AccentColorPicker from './AccentColorPicker';
 import { providerLogos } from '@/data/providerLogos';
 import { toast } from 'sonner';
 
 interface SettingsPageProps {
   settings: AppSettings;
+  providers: Provider[];
   onUpdateSettings: (updates: Partial<AppSettings>) => void;
+  onRefreshProvider: (id: string) => Promise<void>;
   onBack: () => void;
   onOpenDiagnostics: () => void;
   onExportSettings: () => void;
@@ -19,7 +22,9 @@ interface SettingsPageProps {
 
 export default function SettingsPage({
   settings,
+  providers,
   onUpdateSettings,
+  onRefreshProvider,
   onBack,
   onOpenDiagnostics,
   onExportSettings,
@@ -66,11 +71,10 @@ export default function SettingsPage({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-2.5 py-1.5 text-[11px] font-medium transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              activeTab === tab.id
-                ? 'text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`px-2.5 py-1.5 text-[11px] font-medium transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground'
+              }`}
             role="tab"
             aria-selected={activeTab === tab.id}
           >
@@ -93,7 +97,7 @@ export default function SettingsPage({
         {activeTab === 'providers' && (
           <ProvidersTab settings={settings} onUpdate={onUpdateSettings} />
         )}
-        {activeTab === 'auth' && <AuthTab />}
+        {activeTab === 'auth' && <AuthTab providers={providers} onRefreshProvider={onRefreshProvider} />}
         {activeTab === 'about' && (
           <AboutTab
             onExport={onExportSettings}
@@ -126,17 +130,15 @@ function ToggleRow({
       </div>
       <button
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-[22px] w-[40px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-          checked ? 'bg-primary' : 'bg-muted'
-        }`}
+        className={`relative inline-flex h-[22px] w-[40px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${checked ? 'bg-primary' : 'bg-muted'
+          }`}
         role="switch"
         aria-checked={checked}
         aria-label={label}
       >
         <span
-          className={`pointer-events-none block h-[18px] w-[18px] rounded-full bg-primary-foreground shadow-sm ring-0 transition-transform mt-[2px] ${
-            checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
-          }`}
+          className={`pointer-events-none block h-[18px] w-[18px] rounded-full bg-primary-foreground shadow-sm ring-0 transition-transform mt-[2px] ${checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
+            }`}
         />
       </button>
     </div>
@@ -279,7 +281,12 @@ function GeneralTab({
       />
       <NotificationPreview
         settings={settings}
-        onTestNotification={() => toast.info('Test notification from CodexBar')}
+        onTestNotification={() => {
+          toast.info('Test notification from CodexBar');
+          import('@tauri-apps/plugin-notification').then(({ sendNotification }) => {
+            sendNotification({ title: 'CodexBar', body: 'Test notification from CodexBar' });
+          }).catch(() => { });
+        }}
       />
     </>
   );
@@ -319,6 +326,18 @@ function DisplayTab({
         ]}
         onChange={v => onUpdate({ viewMode: v as AppSettings['viewMode'] })}
       />
+      <AccentColorPicker
+        currentAccent={settings.accentColor}
+        onSelect={hsl => onUpdate({ accentColor: hsl })}
+      />
+      <SliderRow
+        label="Data retention"
+        value={settings.dataRetentionDays}
+        min={7}
+        max={90}
+        unit=" days"
+        onChange={v => onUpdate({ dataRetentionDays: v })}
+      />
     </>
   );
 }
@@ -341,62 +360,129 @@ function ProvidersTab({
     { id: 'augment', name: 'Augment' },
     { id: 'devin', name: 'Devin' },
   ];
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   return (
     <div className="space-y-2">
-      <div className="text-[10px] text-muted-foreground mb-3">Enable/disable providers. Drag cards on dashboard to reorder.</div>
-      {allProviders.map(p => (
-        <div key={p.id} className="flex items-center justify-between py-2 px-3 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-          <div className="flex items-center gap-2.5">
-            <img src={providerLogos[p.id]} alt={p.name} className="h-5 w-5 rounded-sm object-contain" />
-            <span className="text-xs font-medium text-card-foreground">{p.name}</span>
+      <div className="text-[10px] text-muted-foreground mb-3">Enable/disable providers. Tap a provider to set custom thresholds.</div>
+      {allProviders.map(p => {
+        const isEnabled = settings.enabledProviders.includes(p.id);
+        const customThresholds = settings.providerThresholds?.[p.id as ProviderId];
+        const isExpanded = expanded === p.id;
+        return (
+          <div key={p.id} className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="flex items-center justify-between py-2 px-3 hover:bg-secondary/30 transition-colors">
+              <button
+                className="flex items-center gap-2.5 flex-1 min-w-0"
+                onClick={() => setExpanded(isExpanded ? null : p.id)}
+              >
+                <img src={providerLogos[p.id]} alt={p.name} className="h-5 w-5 rounded-sm object-contain" />
+                <span className="text-xs font-medium text-card-foreground">{p.name}</span>
+                {customThresholds && (
+                  <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Custom</span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  const updated = isEnabled
+                    ? settings.enabledProviders.filter(x => x !== p.id)
+                    : [...settings.enabledProviders, p.id];
+                  onUpdate({ enabledProviders: updated });
+                }}
+                className={`relative inline-flex h-[22px] w-[40px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isEnabled ? 'bg-primary' : 'bg-muted'}`}
+                role="switch"
+                aria-checked={isEnabled}
+                aria-label={`Toggle ${p.name}`}
+              >
+                <span className={`pointer-events-none block h-[18px] w-[18px] rounded-full bg-primary-foreground shadow-sm ring-0 transition-transform mt-[2px] ${isEnabled ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
+              </button>
+            </div>
+            {isExpanded && (
+              <div className="px-3 pb-3 pt-1 border-t border-border space-y-2">
+                <div className="text-[10px] text-muted-foreground">Custom alert thresholds (leave default to use global)</div>
+                <SliderRow
+                  label="Warning"
+                  value={customThresholds?.warning ?? settings.warningThreshold}
+                  min={5} max={50} unit="%"
+                  onChange={v => {
+                    const existing = customThresholds || { warning: settings.warningThreshold, critical: settings.criticalThreshold };
+                    onUpdate({
+                      providerThresholds: {
+                        ...settings.providerThresholds,
+                        [p.id]: { ...existing, warning: v },
+                      },
+                    });
+                  }}
+                />
+                <SliderRow
+                  label="Critical"
+                  value={customThresholds?.critical ?? settings.criticalThreshold}
+                  min={5} max={25} unit="%"
+                  onChange={v => {
+                    const existing = customThresholds || { warning: settings.warningThreshold, critical: settings.criticalThreshold };
+                    onUpdate({
+                      providerThresholds: {
+                        ...settings.providerThresholds,
+                        [p.id]: { ...existing, critical: v },
+                      },
+                    });
+                  }}
+                />
+                {customThresholds && (
+                  <button
+                    onClick={() => {
+                      const next = { ...settings.providerThresholds };
+                      delete next[p.id as ProviderId];
+                      onUpdate({ providerThresholds: next });
+                    }}
+                    className="text-[10px] text-cb-warning hover:text-cb-warning/80 transition-colors"
+                  >
+                    Reset to global defaults
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => {
-              const enabled = settings.enabledProviders.includes(p.id);
-              const updated = enabled
-                ? settings.enabledProviders.filter(x => x !== p.id)
-                : [...settings.enabledProviders, p.id];
-              onUpdate({ enabledProviders: updated });
-            }}
-            className={`relative inline-flex h-[22px] w-[40px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              settings.enabledProviders.includes(p.id) ? 'bg-primary' : 'bg-muted'
-            }`}
-            role="switch"
-            aria-checked={settings.enabledProviders.includes(p.id)}
-            aria-label={`Toggle ${p.name}`}
-          >
-            <span
-              className={`pointer-events-none block h-[18px] w-[18px] rounded-full bg-primary-foreground shadow-sm ring-0 transition-transform mt-[2px] ${
-                settings.enabledProviders.includes(p.id) ? 'translate-x-[20px]' : 'translate-x-[2px]'
-              }`}
-            />
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function AuthTab() {
+const AUTH_TYPES: Record<string, string> = {
+  codex: 'CLI Token',
+  claude: 'OAuth 2.0',
+  cursor: 'Session Cookie',
+  gemini: 'OAuth 2.0',
+  copilot: 'GitHub CLI',
+  windsurf: 'API Key',
+  kiro: 'OAuth 2.0',
+  augment: 'API Key',
+  devin: 'OAuth 2.0',
+};
+
+function AuthTab({ providers, onRefreshProvider }: { providers: Provider[]; onRefreshProvider: (id: string) => Promise<void> }) {
   const [testing, setTesting] = useState<string | null>(null);
 
-  const providers: { id: ProviderId; name: string; status: 'authenticated' | 'expired' | 'not_configured'; type: string; lastAuth: string }[] = [
-    { id: 'codex', name: 'Codex', status: 'authenticated', type: 'CLI Token', lastAuth: '2 days ago' },
-    { id: 'claude', name: 'Claude', status: 'authenticated', type: 'OAuth 2.0', lastAuth: '1 hour ago' },
-    { id: 'cursor', name: 'Cursor', status: 'authenticated', type: 'Session Cookie', lastAuth: '5 hours ago' },
-    { id: 'gemini', name: 'Gemini', status: 'expired', type: 'OAuth 2.0', lastAuth: '3 days ago' },
-    { id: 'copilot', name: 'Copilot', status: 'authenticated', type: 'GitHub CLI', lastAuth: '12 hours ago' },
-    { id: 'windsurf', name: 'Windsurf', status: 'authenticated', type: 'API Key', lastAuth: '6 hours ago' },
-    { id: 'kiro', name: 'Kiro', status: 'authenticated', type: 'OAuth 2.0', lastAuth: '1 day ago' },
-    { id: 'augment', name: 'Augment', status: 'not_configured', type: 'API Key', lastAuth: 'Never' },
-    { id: 'devin', name: 'Devin', status: 'authenticated', type: 'OAuth 2.0', lastAuth: '3 hours ago' },
-  ];
-
-  const handleTest = async (name: string) => {
-    setTesting(name);
-    await new Promise(r => setTimeout(r, 1200));
+  const handleTest = async (provider: Provider) => {
+    setTesting(provider.id);
+    try {
+      await onRefreshProvider(provider.id);
+      toast.success(`${provider.name} connection verified`);
+    } catch {
+      toast.error(`${provider.name} connection failed`);
+    }
     setTesting(null);
-    toast.success(`${name} connection verified`);
+  };
+
+  const handleReAuth = async (provider: Provider) => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open('cmd');
+      toast.info(`Re-authenticate ${provider.name} in the opened terminal`);
+    } catch {
+      toast.info(`Re-authenticate ${provider.name} by running its CLI login command in your terminal`);
+    }
   };
 
   const StatusIcon = ({ status }: { status: string }) => {
@@ -414,59 +500,57 @@ function AuthTab() {
 
       {providers.map(p => (
         <div
-          key={p.name}
-          className={`rounded-lg border p-3 transition-colors ${
-            p.status === 'expired'
-              ? 'border-cb-warning/30 bg-cb-warning/5'
-              : 'border-border bg-card hover:bg-secondary/30'
-          }`}
+          key={p.id}
+          className={`rounded-lg border p-3 transition-colors ${p.authStatus === 'expired'
+            ? 'border-cb-warning/30 bg-cb-warning/5'
+            : 'border-border bg-card hover:bg-secondary/30'
+            }`}
         >
           <div className="flex items-center gap-2.5 mb-2">
             <img src={providerLogos[p.id]} alt={p.name} className="h-5 w-5 rounded-sm object-contain" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-card-foreground">{p.name}</span>
-                <StatusIcon status={p.status} />
+                <StatusIcon status={p.authStatus} />
               </div>
-              <span className="text-[10px] text-muted-foreground">{p.type}</span>
+              <span className="text-[10px] text-muted-foreground">{AUTH_TYPES[p.id] || 'API Key'}</span>
             </div>
             <span
-              className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
-                p.status === 'authenticated'
-                  ? 'cb-badge-operational'
-                  : p.status === 'expired'
+              className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${p.authStatus === 'authenticated'
+                ? 'cb-badge-operational'
+                : p.authStatus === 'expired'
                   ? 'cb-badge-degraded'
                   : 'cb-badge-unknown'
-              }`}
+                }`}
             >
-              {p.status === 'authenticated' ? '● Connected' : p.status === 'expired' ? '● Expired' : '○ Not Set'}
+              {p.authStatus === 'authenticated' ? '● Connected' : p.authStatus === 'expired' ? '● Expired' : '○ Not Set'}
             </span>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">
-              Last authenticated: {p.lastAuth}
+              Status: {p.statusInfo.status}
             </span>
             <div className="flex items-center gap-1.5">
-              {p.status === 'expired' && (
+              {p.authStatus === 'expired' && (
                 <button
                   className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-cb-warning/15 text-cb-warning hover:bg-cb-warning/25 transition-colors"
-                  onClick={() => toast.info(`Re-authenticate ${p.name} in your terminal`)}
+                  onClick={() => handleReAuth(p)}
                 >
                   Re-auth
                 </button>
               )}
               <button
-                onClick={() => handleTest(p.name)}
-                disabled={testing === p.name}
+                onClick={() => handleTest(p)}
+                disabled={testing === p.id}
                 className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50"
               >
-                {testing === p.name ? (
+                {testing === p.id ? (
                   <RefreshCw size={10} className="animate-spin" />
                 ) : (
                   <CheckCircle2 size={10} />
                 )}
-                {testing === p.name ? 'Testing...' : 'Test'}
+                {testing === p.id ? 'Testing...' : 'Test'}
               </button>
             </div>
           </div>
@@ -556,6 +640,30 @@ function AboutTab({
             }}
           />
         </div>
+      </div>
+
+      {/* Check for Updates */}
+      <div className="space-y-2">
+        <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Updates</div>
+        <button
+          onClick={async () => {
+            try {
+              const { checkForUpdateManual } = await import('./UpdateBanner');
+              const version = await checkForUpdateManual();
+              if (version) {
+                toast.success(`Update v${version} available!`);
+              } else {
+                toast.info('You\'re on the latest version');
+              }
+            } catch {
+              toast.info('You\'re on the latest version');
+            }
+          }}
+          className="w-full flex items-center justify-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+        >
+          <Download size={12} />
+          Check for Updates
+        </button>
       </div>
 
       <div className="text-[10px] text-center text-muted-foreground">

@@ -1,7 +1,9 @@
 import { Provider } from '@/types';
+import { RefreshLog } from '@/hooks/useProviders';
 import { providerLogos } from '@/data/providerLogos';
 import { Flame, TrendingUp, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -14,6 +16,7 @@ import {
 
 interface DashboardWidgetsProps {
   providers: Provider[];
+  refreshLogs: RefreshLog[];
   animationsEnabled?: boolean;
 }
 
@@ -29,12 +32,36 @@ const CHART_COLORS: Record<string, string> = {
   devin: 'hsl(270, 70%, 55%)',
 };
 
-export default function DashboardWidgets({ providers, animationsEnabled = true }: DashboardWidgetsProps) {
-  // Total daily spend (mock: sum of session percentages as "tokens")
+/** Compute consecutive days with at least one successful refresh, going backwards from today */
+function computeStreak(logs: RefreshLog[]): number {
+  if (logs.length === 0) return 0;
+  const successfulDays = new Set(
+    logs.filter(l => l.success).map(l => {
+      const d = new Date(l.timestamp);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    })
+  );
+  let streak = 0;
+  const now = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (successfulDays.has(key)) {
+      streak++;
+    } else if (i > 0) {
+      break; // skip today if no refresh yet, but break on past gaps
+    }
+  }
+  return streak;
+}
+
+export default function DashboardWidgets({ providers, refreshLogs, animationsEnabled = true }: DashboardWidgetsProps) {
+  // Total daily spend: sum of session percentages as approximate token count
   const totalDailyTokens = providers.reduce((sum, p) => sum + Math.round(p.usage.sessionPercent * 12.5), 0);
-  
-  // Streak: mock consecutive days
-  const streak = 7;
+
+  // Streak: computed from actual refresh logs
+  const streak = useMemo(() => computeStreak(refreshLogs), [refreshLogs]);
 
   // Comparison data
   const comparisonData = providers
@@ -98,9 +125,8 @@ export default function DashboardWidgets({ providers, animationsEnabled = true }
           {Array.from({ length: 7 }, (_, i) => (
             <div
               key={i}
-              className={`h-1.5 flex-1 rounded-full ${
-                i < streak ? 'bg-cb-warning' : 'bg-cb-bar-bg'
-              }`}
+              className={`h-1.5 flex-1 rounded-full ${i < streak ? 'bg-cb-warning' : 'bg-cb-bar-bg'
+                }`}
             />
           ))}
         </div>

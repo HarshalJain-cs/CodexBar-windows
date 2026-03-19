@@ -5,13 +5,14 @@ interface AppHeaderProps {
   isRefreshing: boolean;
   lastRefresh: number;
   countdown: number;
+  refreshInterval: number;
   onRefresh: () => void;
   onOpenSettings: () => void;
   theme: ThemeMode;
   onToggleTheme: () => void;
 }
 
-export default function AppHeader({ isRefreshing, lastRefresh, countdown, onRefresh, onOpenSettings, theme, onToggleTheme }: AppHeaderProps) {
+export default function AppHeader({ isRefreshing, lastRefresh, countdown, refreshInterval, onRefresh, onOpenSettings, theme, onToggleTheme }: AppHeaderProps) {
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   return (
@@ -26,7 +27,7 @@ export default function AppHeader({ isRefreshing, lastRefresh, countdown, onRefr
             <circle
               cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"
               strokeDasharray="31.4"
-              strokeDashoffset={31.4 * (1 - countdown / 30)}
+              strokeDashoffset={31.4 * (1 - countdown / refreshInterval)}
               strokeLinecap="round"
               transform="rotate(-90 6 6)"
               className="transition-all duration-1000 ease-linear"

@@ -60,6 +60,28 @@ pub struct Settings {
     /// Notification sound: "default", "custom", or "none"
     #[serde(default = "default_sound")]
     pub notification_sound: String,
+    /// Pinned providers (shown first in dashboard)
+    #[serde(default)]
+    pub pinned_providers: Vec<String>,
+    /// Per-provider warning/critical thresholds
+    #[serde(default)]
+    pub provider_thresholds: HashMap<String, ProviderThreshold>,
+    /// Accent color as HSL string (e.g., "217 91% 60%")
+    #[serde(default = "default_accent_color")]
+    pub accent_color: String,
+    /// Focus mode: only show at-risk providers
+    #[serde(default)]
+    pub focus_mode: bool,
+    /// Data retention period in days
+    #[serde(default = "default_retention_days")]
+    pub data_retention_days: u32,
+}
+
+/// Per-provider threshold configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderThreshold {
+    pub warning: f64,
+    pub critical: f64,
 }
 
 fn default_true() -> bool { true }
@@ -68,6 +90,8 @@ fn default_light() -> String { "light".to_string() }
 fn default_grid() -> String { "grid".to_string() }
 fn default_both() -> String { "both".to_string() }
 fn default_sound() -> String { "default".to_string() }
+fn default_accent_color() -> String { "217 91% 60%".to_string() }
+fn default_retention_days() -> u32 { 30 }
 fn default_provider_order() -> Vec<String> {
     vec![
         "codex".to_string(), "claude".to_string(), "cursor".to_string(),
@@ -112,6 +136,11 @@ impl Default for Settings {
             provider_order: default_provider_order(),
             notification_type: "both".to_string(),
             notification_sound: "default".to_string(),
+            pinned_providers: Vec::new(),
+            provider_thresholds: HashMap::new(),
+            accent_color: default_accent_color(),
+            focus_mode: false,
+            data_retention_days: 30,
         }
     }
 }

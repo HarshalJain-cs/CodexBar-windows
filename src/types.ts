@@ -20,6 +20,8 @@ export interface UsageData {
   sessionLabel: string;
   weeklyLabel: string;
   trend: UsageTrend;
+  sessionResetsAt?: string;
+  weeklyResetsAt?: string;
 }
 
 export type ProviderStatus = 'operational' | 'degraded' | 'outage' | 'unknown';
@@ -47,6 +49,20 @@ export type NotificationType = 'system' | 'in-app' | 'both';
 export type NotificationSound = 'default' | 'custom' | 'none';
 export type ViewMode = 'grid' | 'compact';
 
+export interface ProviderThresholds {
+  warning: number;
+  critical: number;
+}
+
+export interface AlertLogEntry {
+  id: string;
+  providerId: ProviderId;
+  providerName: string;
+  type: 'warning' | 'critical';
+  message: string;
+  timestamp: number;
+}
+
 export interface AppSettings {
   theme: ThemeMode;
   refreshInterval: number;
@@ -61,6 +77,13 @@ export interface AppSettings {
   viewMode: ViewMode;
   providerOrder: ProviderId[];
   enabledProviders: ProviderId[];
+  privacyMode: boolean;
+  pinnedProviders: ProviderId[];
+  providerThresholds: Partial<Record<ProviderId, ProviderThresholds>>;
+  accentColor: string;
+  focusMode: boolean;
+  dataRetentionDays: number;
 }
 
 export type SettingsTab = 'general' | 'display' | 'providers' | 'auth' | 'about';
+

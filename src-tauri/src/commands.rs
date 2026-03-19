@@ -163,6 +163,20 @@ pub async fn export_diagnostics_impl(app_state: &AppState) -> Result<String, Str
         .map_err(|e| format!("Failed to serialize diagnostics: {}", e))
 }
 
+/// Update the system tray tooltip text
+#[tauri::command]
+pub async fn update_tray_tooltip(
+    app: AppHandle,
+    tooltip: String,
+) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_tooltip(Some(&tooltip))
+            .map_err(|e| format!("Failed to set tooltip: {}", e))
+    } else {
+        Err("Tray icon not found".to_string())
+    }
+}
+
 /// Export diagnostics bundle as JSON (Tauri command wrapper)
 #[tauri::command]
 pub async fn export_diagnostics(state: State<'_, AppState>) -> Result<String, String> {

@@ -353,4 +353,10 @@ export const defaultSettings: AppSettings = {
   viewMode: 'grid',
   providerOrder: ['codex', 'claude', 'cursor', 'gemini', 'copilot', 'windsurf', 'kiro', 'augment', 'devin'],
   enabledProviders: ['codex', 'claude', 'cursor', 'gemini', 'copilot', 'windsurf', 'kiro', 'augment', 'devin'],
+  privacyMode: false,
+  pinnedProviders: [],
+  providerThresholds: {},
+  accentColor: '217 91% 60%',
+  focusMode: false,
+  dataRetentionDays: 30,
 };
