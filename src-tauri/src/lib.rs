@@ -165,6 +165,7 @@ pub fn run() {
             check_for_updates,
             set_autostart,
             get_autostart,
+            notifications::test_webhook,
         ])
         .setup(|app| {
             // Build tray menu

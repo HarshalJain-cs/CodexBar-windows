@@ -29,6 +29,8 @@ const appSettingsSchema = z.object({
   accentColor: z.string().optional(),
   focusMode: z.boolean().optional(),
   dataRetentionDays: z.number().min(1).max(365).optional(),
+  webhookUrl: z.string().optional(),
+  webhookEnabled: z.boolean().optional(),
 }).passthrough();
 
 // Backend Settings shape (mirrors Rust serde output)
@@ -61,6 +63,8 @@ interface BackendSettings {
   accentColor?: string;
   focusMode?: boolean;
   dataRetentionDays?: number;
+  webhookUrl?: string;
+  webhookEnabled?: boolean;
 }
 
 function backendToFrontend(backend: BackendSettings): AppSettings {
@@ -84,6 +88,8 @@ function backendToFrontend(backend: BackendSettings): AppSettings {
     accentColor: backend.accentColor || '217 91% 60%',
     focusMode: backend.focusMode ?? false,
     dataRetentionDays: backend.dataRetentionDays ?? 30,
+    webhookUrl: backend.webhookUrl ?? '',
+    webhookEnabled: backend.webhookEnabled ?? false,
   };
 }
 
@@ -116,6 +122,8 @@ function frontendToBackend(frontend: AppSettings, existing?: BackendSettings): B
     accentColor: frontend.accentColor,
     focusMode: frontend.focusMode,
     dataRetentionDays: frontend.dataRetentionDays,
+    webhookUrl: frontend.webhookUrl,
+    webhookEnabled: frontend.webhookEnabled,
   };
 }
 

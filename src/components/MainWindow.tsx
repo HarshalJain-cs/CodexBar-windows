@@ -28,6 +28,8 @@ import { Pin, Focus } from 'lucide-react';
 
 // Lazy-load heavy chart components for performance
 const UsageHistoryChart = lazy(() => import('@/components/UsageHistoryChart'));
+const UsagePredictions = lazy(() => import('@/components/UsagePredictions'));
+const WeeklySummary = lazy(() => import('@/components/WeeklySummary'));
 
 // Provider categories
 const PROVIDER_CATEGORIES: Record<string, ProviderId[]> = {
@@ -44,6 +46,7 @@ export default function MainWindow() {
     providers,
     isRefreshing,
     isLoading,
+    isPaused,
     lastRefresh,
     countdown,
     refreshLogs,
@@ -51,6 +54,7 @@ export default function MainWindow() {
     refreshProvider,
     disableProvider,
     setProviders,
+    togglePause,
   } = useProviders(settings.refreshInterval);
 
   const [view, setView] = useState<View>('dashboard');
@@ -414,10 +418,12 @@ export default function MainWindow() {
           >
             <AppHeader
               isRefreshing={isRefreshing}
+              isPaused={isPaused}
               lastRefresh={lastRefresh}
               countdown={countdown}
               refreshInterval={settings.refreshInterval}
               onRefresh={refresh}
+              onTogglePause={togglePause}
               onOpenSettings={() => setView('settings')}
               theme={settings.theme}
               onToggleTheme={() => {
@@ -512,6 +518,56 @@ export default function MainWindow() {
                 <div className="text-center py-8 text-xs text-muted-foreground">
                   No providers match "{searchQuery}"
                 </div>
+              ) : settings.viewMode === 'grouped' ? (
+                <div className="space-y-3">
+                  {Object.entries(PROVIDER_CATEGORIES).map(([category, ids]) => {
+                    const categoryProviders = sortedProviders.filter(p => ids.includes(p.id));
+                    if (categoryProviders.length === 0) return null;
+                    return (
+                      <div key={category}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{category}</span>
+                          <div className="flex-1 h-px bg-border" />
+                          <span className="text-[9px] text-muted-foreground font-mono">
+                            {Math.round(categoryProviders.reduce((s, p) => s + p.usage.sessionPercent, 0) / categoryProviders.length)}% avg
+                          </span>
+                        </div>
+                        <div className="grid gap-2.5 grid-cols-1 min-[300px]:grid-cols-2 min-[800px]:grid-cols-3">
+                          {categoryProviders.map((provider, index) => (
+                            <motion.div
+                              key={provider.id}
+                              initial={settings.animationsEnabled ? { opacity: 0, y: 12, scale: 0.95 } : undefined}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              transition={{ delay: index * 0.06, type: 'spring', damping: 20, stiffness: 300 }}
+                              whileHover={settings.animationsEnabled ? { scale: 1.02, y: -2 } : undefined}
+                              className="relative"
+                            >
+                              {settings.pinnedProviders.includes(provider.id) && (
+                                <div className="absolute -top-1 -left-1 z-10">
+                                  <Pin size={10} className="text-primary fill-primary" />
+                                </div>
+                              )}
+                              <ProviderCard
+                                provider={provider}
+                                onRefresh={refreshProvider}
+                                onDisable={handleDisable}
+                                onPin={togglePin}
+                                isPinned={settings.pinnedProviders.includes(provider.id)}
+                                animationsEnabled={settings.animationsEnabled}
+                                warningThreshold={getThresholds(provider.id).warning}
+                                criticalThreshold={getThresholds(provider.id).critical}
+                                privacyMode={settings.privacyMode}
+                                draggable
+                                onDragStart={handleDragStart}
+                                onDrop={handleDrop}
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : settings.viewMode === 'compact' ? (
                 <div className="rounded-lg border border-border bg-card overflow-hidden">
                   <div className="px-3 py-1.5 border-b border-border flex items-center justify-between">
@@ -598,7 +654,34 @@ export default function MainWindow() {
                     providers={sortedProviders}
                     refreshLogs={refreshLogs}
                     animationsEnabled={settings.animationsEnabled}
+                    privacyMode={settings.privacyMode}
                   />
+                </div>
+              )}
+
+              {/* Burndown predictions */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <UsagePredictions
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {/* Weekly summary */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <WeeklySummary
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
                 </div>
               )}
 

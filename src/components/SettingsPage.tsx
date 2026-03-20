@@ -288,6 +288,51 @@ function GeneralTab({
           }).catch(() => { });
         }}
       />
+
+      {/* Webhook notifications */}
+      <div className="border-t border-border pt-3 mt-2">
+        <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">Webhook Alerts</div>
+        <ToggleRow
+          label="Webhook notifications"
+          description="Send alerts to Discord, Slack, or custom webhook"
+          checked={settings.webhookEnabled}
+          onChange={v => onUpdate({ webhookEnabled: v })}
+        />
+        {settings.webhookEnabled && (
+          <div className="mt-2 space-y-2">
+            <input
+              type="url"
+              value={settings.webhookUrl}
+              onChange={e => onUpdate({ webhookUrl: e.target.value })}
+              placeholder="https://discord.com/api/webhooks/... or Slack URL"
+              className="w-full text-[11px] bg-secondary text-secondary-foreground border border-border rounded-md px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (!settings.webhookUrl) {
+                    toast.error('Enter a webhook URL first');
+                    return;
+                  }
+                  try {
+                    const { invoke } = await import('@tauri-apps/api/core');
+                    const result = await invoke<string>('test_webhook', { url: settings.webhookUrl });
+                    toast.success(result);
+                  } catch (err) {
+                    toast.error(`Webhook test failed: ${err}`);
+                  }
+                }}
+                className="flex items-center gap-1 text-[10px] font-medium px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Test Webhook
+              </button>
+            </div>
+            <div className="text-[9px] text-muted-foreground">
+              Supports Discord webhooks, Slack incoming webhooks, and generic JSON POST endpoints.
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }
@@ -323,6 +368,7 @@ function DisplayTab({
         options={[
           { value: 'grid', label: 'Grid cards' },
           { value: 'compact', label: 'Compact list' },
+          { value: 'grouped', label: 'By category' },
         ]}
         onChange={v => onUpdate({ viewMode: v as AppSettings['viewMode'] })}
       />

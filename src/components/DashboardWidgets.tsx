@@ -18,6 +18,7 @@ interface DashboardWidgetsProps {
   providers: Provider[];
   refreshLogs: RefreshLog[];
   animationsEnabled?: boolean;
+  privacyMode?: boolean;
 }
 
 const CHART_COLORS: Record<string, string> = {
@@ -56,7 +57,7 @@ function computeStreak(logs: RefreshLog[]): number {
   return streak;
 }
 
-export default function DashboardWidgets({ providers, refreshLogs, animationsEnabled = true }: DashboardWidgetsProps) {
+export default function DashboardWidgets({ providers, refreshLogs, animationsEnabled = true, privacyMode = false }: DashboardWidgetsProps) {
   // Total daily spend: sum of session percentages as approximate token count
   const totalDailyTokens = providers.reduce((sum, p) => sum + Math.round(p.usage.sessionPercent * 12.5), 0);
 
@@ -103,7 +104,7 @@ export default function DashboardWidgets({ providers, refreshLogs, animationsEna
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Daily Tokens</span>
         </div>
         <div className="text-xl font-bold text-card-foreground cb-mono">
-          {totalDailyTokens.toLocaleString()}
+          {privacyMode ? '•••••' : totalDailyTokens.toLocaleString()}
         </div>
         <div className="text-[10px] text-muted-foreground mt-0.5">across {providers.length} providers</div>
       </motion.div>

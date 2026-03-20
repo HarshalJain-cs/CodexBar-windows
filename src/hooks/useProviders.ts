@@ -155,9 +155,11 @@ export function useProviders(refreshInterval: number = 30) {
   const [providers, setProviders] = useState<Provider[]>(mockProviders);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
   const [refreshLogs, setRefreshLogs] = useState<RefreshLog[]>([]);
   const [countdown, setCountdown] = useState(refreshInterval);
+  const [retryCount, setRetryCount] = useState(0);
   const refreshIntervalRef = useRef(refreshInterval);
 
   // Keep ref in sync
@@ -233,14 +235,28 @@ export function useProviders(refreshInterval: number = 30) {
       setProviders(data);
       const duration = Date.now() - start;
       addLog('all', true, duration);
+      setRetryCount(0); // Reset retry on success
     } catch (err) {
       console.error('Refresh failed:', err);
       addLog('all', false, Date.now() - start);
+      setRetryCount(prev => prev + 1);
+      // Exponential backoff retry (max 3 retries)
+      const currentRetry = retryCount;
+      if (currentRetry < 3) {
+        const backoff = Math.min(5000 * Math.pow(2, currentRetry), 30000);
+        setTimeout(() => {
+          if (!isPaused) refresh();
+        }, backoff);
+      }
     }
     setLastRefresh(Date.now());
     setCountdown(refreshIntervalRef.current);
     setIsRefreshing(false);
-  }, [addLog, fetchAllData]);
+  }, [addLog, fetchAllData, retryCount, isPaused]);
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
 
   const refreshProvider = useCallback(async (id: string) => {
     // For unsupported providers, just simulate
@@ -267,24 +283,27 @@ export function useProviders(refreshInterval: number = 30) {
 
   // Auto-refresh via frontend timer (backend also has its own refresh loop)
   useEffect(() => {
+    if (isPaused) return;
     const id = setInterval(() => {
       refresh();
     }, refreshInterval * 1000);
     return () => clearInterval(id);
-  }, [refreshInterval, refresh]);
+  }, [refreshInterval, refresh, isPaused]);
 
   // Countdown timer
   useEffect(() => {
+    if (isPaused) return;
     const id = setInterval(() => {
       setCountdown(prev => (prev <= 1 ? refreshIntervalRef.current : prev - 1));
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [isPaused]);
 
   return {
     providers,
     isRefreshing,
     isLoading,
+    isPaused,
     lastRefresh,
     countdown,
     refreshLogs,
@@ -292,5 +311,6 @@ export function useProviders(refreshInterval: number = 30) {
     refreshProvider,
     disableProvider,
     setProviders,
+    togglePause,
   };
 }

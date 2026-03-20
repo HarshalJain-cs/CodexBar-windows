@@ -47,7 +47,7 @@ export interface Provider {
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type NotificationType = 'system' | 'in-app' | 'both';
 export type NotificationSound = 'default' | 'custom' | 'none';
-export type ViewMode = 'grid' | 'compact';
+export type ViewMode = 'grid' | 'compact' | 'grouped';
 
 export interface ProviderThresholds {
   warning: number;
@@ -83,6 +83,8 @@ export interface AppSettings {
   accentColor: string;
   focusMode: boolean;
   dataRetentionDays: number;
+  webhookUrl: string;
+  webhookEnabled: boolean;
 }
 
 export type SettingsTab = 'general' | 'display' | 'providers' | 'auth' | 'about';

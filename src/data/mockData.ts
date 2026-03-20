@@ -359,4 +359,6 @@ export const defaultSettings: AppSettings = {
   accentColor: '217 91% 60%',
   focusMode: false,
   dataRetentionDays: 30,
+  webhookUrl: '',
+  webhookEnabled: false,
 };

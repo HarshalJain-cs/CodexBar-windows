@@ -1,9 +1,33 @@
-import { Provider } from '@/types';
-import { useState } from 'react';
+import { Provider, ProviderStatus } from '@/types';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 interface StatusPanelProps {
   providers: Provider[];
+}
+
+interface StoredStatusEntry {
+  providerId: string;
+  status: ProviderStatus;
+  timestamp: number;
+}
+
+const STATUS_HISTORY_KEY = 'cb-status-history';
+const MAX_HISTORY_ENTRIES = 50;
+
+function loadStatusHistory(): StoredStatusEntry[] {
+  try {
+    const raw = localStorage.getItem(STATUS_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStatusHistory(entries: StoredStatusEntry[]) {
+  try {
+    localStorage.setItem(STATUS_HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY_ENTRIES)));
+  } catch { /* quota exceeded or unavailable */ }
 }
 
 function statusLabel(status: string) {
@@ -28,6 +52,39 @@ function timeAgo(ts: number) {
 export default function StatusPanel({ providers }: StatusPanelProps) {
   const hasIssue = providers.some(p => p.statusInfo.status !== 'operational');
   const [expanded, setExpanded] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<StoredStatusEntry[]>(loadStatusHistory);
+
+  // Track status changes and persist to localStorage
+  useEffect(() => {
+    const history = loadStatusHistory();
+    let changed = false;
+
+    providers.forEach(p => {
+      // Find last recorded status for this provider
+      const lastEntry = history.find(h => h.providerId === p.id);
+      if (!lastEntry || lastEntry.status !== p.statusInfo.status) {
+        history.unshift({
+          providerId: p.id,
+          status: p.statusInfo.status,
+          timestamp: Date.now(),
+        });
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      const trimmed = history.slice(0, MAX_HISTORY_ENTRIES);
+      saveStatusHistory(trimmed);
+      setStatusHistory(trimmed);
+    }
+  }, [providers]);
+
+  // Get persisted history for a specific provider
+  const getProviderHistory = (providerId: string) => {
+    return statusHistory
+      .filter(h => h.providerId === providerId)
+      .slice(0, 5);
+  };
 
   return (
     <div className="border-t border-border bg-card">
@@ -84,32 +141,36 @@ export default function StatusPanel({ providers }: StatusPanelProps) {
             </div>
           ))}
 
-          {/* Status history for providers with issues */}
+          {/* Persisted status history for providers with issues */}
           {providers
             .filter(p => p.statusInfo.status !== 'operational')
-            .map(p => (
-              <div key={`history-${p.id}`} className="pl-4 border-l-2 border-border mt-1">
-                <span className="text-[10px] text-muted-foreground font-medium">
-                  {p.name} history
-                </span>
-                {p.statusInfo.history.map((h, i) => (
-                  <div key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        h.status === 'operational'
-                          ? 'bg-cb-success'
-                          : h.status === 'degraded'
-                          ? 'bg-cb-warning'
-                          : 'bg-cb-critical'
-                      }`}
-                    />
-                    <span>{statusLabel(h.status)}</span>
-                    <span>·</span>
-                    <span>{timeAgo(h.timestamp)}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
+            .map(p => {
+              const history = getProviderHistory(p.id);
+              if (history.length <= 1) return null;
+              return (
+                <div key={`history-${p.id}`} className="pl-4 border-l-2 border-border mt-1">
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {p.name} history
+                  </span>
+                  {history.slice(1).map((h, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          h.status === 'operational'
+                            ? 'bg-cb-success'
+                            : h.status === 'degraded'
+                            ? 'bg-cb-warning'
+                            : 'bg-cb-critical'
+                        }`}
+                      />
+                      <span>{statusLabel(h.status)}</span>
+                      <span>·</span>
+                      <span>{timeAgo(h.timestamp)}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
         </div>
       )}
     </div>

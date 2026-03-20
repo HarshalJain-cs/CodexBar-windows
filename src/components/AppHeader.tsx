@@ -1,18 +1,20 @@
-import { RefreshCw, Settings, Sun, Moon } from 'lucide-react';
+import { RefreshCw, Settings, Sun, Moon, Pause, Play } from 'lucide-react';
 import { ThemeMode } from '@/types';
 
 interface AppHeaderProps {
   isRefreshing: boolean;
+  isPaused: boolean;
   lastRefresh: number;
   countdown: number;
   refreshInterval: number;
   onRefresh: () => void;
+  onTogglePause: () => void;
   onOpenSettings: () => void;
   theme: ThemeMode;
   onToggleTheme: () => void;
 }
 
-export default function AppHeader({ isRefreshing, lastRefresh, countdown, refreshInterval, onRefresh, onOpenSettings, theme, onToggleTheme }: AppHeaderProps) {
+export default function AppHeader({ isRefreshing, isPaused, lastRefresh, countdown, refreshInterval, onRefresh, onTogglePause, onOpenSettings, theme, onToggleTheme }: AppHeaderProps) {
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   return (
@@ -20,19 +22,24 @@ export default function AppHeader({ isRefreshing, lastRefresh, countdown, refres
       <div className="flex items-center gap-2">
         <span className="text-sm font-bold text-card-foreground cb-mono tracking-tight">CodexBar</span>
         <div className="flex items-center gap-1">
-          <span className="text-[9px] text-muted-foreground font-mono">{countdown}s</span>
-          {/* Countdown ring */}
-          <svg width="12" height="12" viewBox="0 0 12 12" className="text-primary opacity-50">
-            <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="31.4" strokeDashoffset="0" opacity="0.2" />
-            <circle
-              cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeDasharray="31.4"
-              strokeDashoffset={31.4 * (1 - countdown / refreshInterval)}
-              strokeLinecap="round"
-              transform="rotate(-90 6 6)"
-              className="transition-all duration-1000 ease-linear"
-            />
-          </svg>
+          {isPaused ? (
+            <span className="text-[9px] text-cb-warning font-mono font-semibold">PAUSED</span>
+          ) : (
+            <>
+              <span className="text-[9px] text-muted-foreground font-mono">{countdown}s</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" className="text-primary opacity-50">
+                <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="31.4" strokeDashoffset="0" opacity="0.2" />
+                <circle
+                  cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"
+                  strokeDasharray="31.4"
+                  strokeDashoffset={31.4 * (1 - countdown / refreshInterval)}
+                  strokeLinecap="round"
+                  transform="rotate(-90 6 6)"
+                  className="transition-all duration-1000 ease-linear"
+                />
+              </svg>
+            </>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-0.5">
@@ -42,6 +49,15 @@ export default function AppHeader({ isRefreshing, lastRefresh, countdown, refres
           aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
         >
           {isDark ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
+        <button
+          onClick={onTogglePause}
+          className={`p-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            isPaused ? 'text-cb-warning hover:text-cb-warning/80 hover:bg-cb-warning/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+          }`}
+          aria-label={isPaused ? 'Resume auto-refresh' : 'Pause auto-refresh'}
+        >
+          {isPaused ? <Play size={14} /> : <Pause size={14} />}
         </button>
         <button
           onClick={onRefresh}

@@ -75,6 +75,12 @@ pub struct Settings {
     /// Data retention period in days
     #[serde(default = "default_retention_days")]
     pub data_retention_days: u32,
+    /// Webhook URL for external notifications (Discord/Slack)
+    #[serde(default)]
+    pub webhook_url: String,
+    /// Whether webhook notifications are enabled
+    #[serde(default)]
+    pub webhook_enabled: bool,
 }
 
 /// Per-provider threshold configuration
@@ -141,6 +147,8 @@ impl Default for Settings {
             accent_color: default_accent_color(),
             focus_mode: false,
             data_retention_days: 30,
+            webhook_url: String::new(),
+            webhook_enabled: false,
         }
     }
 }
