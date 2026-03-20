@@ -28,4 +28,17 @@ export default defineConfig({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react/jsx-runtime'],
+          'vendor-charts': ['recharts'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-tauri': ['@tauri-apps/api', '@tauri-apps/plugin-notification', '@tauri-apps/plugin-autostart'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 });

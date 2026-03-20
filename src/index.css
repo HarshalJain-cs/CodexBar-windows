@@ -47,6 +47,13 @@
     --cb-status-outage: 0 84% 60%;
     --cb-status-unknown: 220 9% 46%;
 
+    /* Heatmap gradient tokens */
+    --cb-heatmap-0: hsl(220 14% 92%);
+    --cb-heatmap-1: hsl(217 70% 78%);
+    --cb-heatmap-2: hsl(217 80% 62%);
+    --cb-heatmap-3: hsl(217 91% 50%);
+    --cb-heatmap-4: hsl(217 95% 38%);
+
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -97,6 +104,13 @@
     --cb-status-degraded: 38 92% 50%;
     --cb-status-outage: 0 72% 55%;
     --cb-status-unknown: 215 15% 55%;
+
+    /* Heatmap gradient tokens (dark) */
+    --cb-heatmap-0: hsl(228 12% 18%);
+    --cb-heatmap-1: hsl(217 50% 30%);
+    --cb-heatmap-2: hsl(217 70% 42%);
+    --cb-heatmap-3: hsl(217 85% 55%);
+    --cb-heatmap-4: hsl(217 91% 65%);
 
     --sidebar-background: 228 15% 10%;
     --sidebar-foreground: 210 20% 85%;
@@ -221,6 +235,33 @@
   /* Drag over indicator */
   .cb-drag-over {
     @apply border-primary/50 bg-primary/5;
+  }
+
+  /* Skip to content link (screen reader + keyboard) */
+  .cb-skip-link {
+    @apply absolute -top-10 left-2 z-50 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium;
+    transition: top 0.2s ease;
+  }
+  .cb-skip-link:focus {
+    @apply top-2;
+  }
+
+  /* Focus indicator for keyboard navigation */
+  .cb-focus-ring:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-1 ring-offset-background rounded-md;
+  }
+
+  /* Screen reader only helper */
+  .cb-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 }
 

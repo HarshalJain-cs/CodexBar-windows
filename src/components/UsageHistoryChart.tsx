@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 
 interface UsageHistoryChartProps {
   providers: Provider[];
@@ -18,24 +18,75 @@ interface UsageHistoryChartProps {
 
 type TimeRange = '8h' | '24h' | '7d';
 
-function generateHistoryData(providers: Provider[], range: TimeRange) {
+const SNAPSHOT_KEY = 'cb-usage-snapshots';
+const MAX_SNAPSHOTS = 168; // 7 days of hourly snapshots
+
+interface StoredSnapshot {
+  timestamp: number;
+  data: Record<string, number>; // providerId -> sessionPercent
+}
+
+function loadSnapshots(): StoredSnapshot[] {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSnapshots(snapshots: StoredSnapshot[]) {
+  try {
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshots.slice(-MAX_SNAPSHOTS)));
+  } catch { /* ok */ }
+}
+
+function snapshotProviders(providers: Provider[]): StoredSnapshot {
+  const data: Record<string, number> = {};
+  providers.forEach(p => { data[p.id] = p.usage.sessionPercent; });
+  return { timestamp: Date.now(), data };
+}
+
+function buildChartData(
+  snapshots: StoredSnapshot[],
+  providers: Provider[],
+  range: TimeRange
+): Record<string, number | string>[] {
   const now = Date.now();
   const hour = 3600000;
+  const cutoff = range === '8h' ? now - 8 * hour
+    : range === '24h' ? now - 24 * hour
+    : now - 7 * 24 * hour;
+
+  const relevant = snapshots.filter(s => s.timestamp >= cutoff);
+
+  if (relevant.length === 0) {
+    // No historical data yet — show current as single point
+    const point: Record<string, number | string> = {
+      time: new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }),
+    };
+    providers.forEach(p => { point[p.id] = p.usage.sessionPercent; });
+    return [point];
+  }
+
+  // Bucket into time slots
   const intervals = range === '8h' ? 8 : range === '24h' ? 24 : 7 * 24;
-  const step = range === '7d' ? 24 * hour : hour;
+  const step = (now - cutoff) / intervals;
 
   return Array.from({ length: intervals }, (_, i) => {
-    const timestamp = now - (intervals - 1 - i) * step;
-    const point: Record<string, number | string> = {
-      time: range === '7d'
-        ? new Date(timestamp).toLocaleDateString('en', { weekday: 'short' })
-        : new Date(timestamp).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }),
-    };
+    const slotStart = cutoff + i * step;
+    const slotEnd = slotStart + step;
+    const slotLabel = range === '7d'
+      ? new Date(slotStart).toLocaleDateString('en', { weekday: 'short', hour: '2-digit' })
+      : new Date(slotStart).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+
+    // Find closest snapshot in this slot
+    const inSlot = relevant.filter(s => s.timestamp >= slotStart && s.timestamp < slotEnd);
+    const snapshot = inSlot.length > 0
+      ? inSlot[inSlot.length - 1] // latest in slot
+      : null;
+
+    const point: Record<string, number | string> = { time: slotLabel };
     providers.forEach(p => {
-      const trendPoint = p.usage.trend.points[Math.min(i, p.usage.trend.points.length - 1)];
-      const base = trendPoint?.value ?? p.usage.sessionPercent;
-      const jitter = Math.floor(Math.random() * 8 - 4);
-      point[p.id] = Math.max(0, Math.min(100, base + jitter + (i * (Math.random() > 0.5 ? 1 : -1))));
+      point[p.id] = snapshot?.data[p.id] ?? 0;
     });
     return point;
   });
@@ -58,17 +109,45 @@ export default function UsageHistoryChart({ providers, animationsEnabled = true 
   const [visibleProviders, setVisibleProviders] = useState<Set<ProviderId>>(
     () => new Set(providers.slice(0, 3).map(p => p.id))
   );
-  const [data] = useState(() => ({
-    '8h': generateHistoryData(providers, '8h'),
-    '24h': generateHistoryData(providers, '24h'),
-    '7d': generateHistoryData(providers, '7d'),
-  }));
+  const [snapshots, setSnapshots] = useState<StoredSnapshot[]>(loadSnapshots);
+  const lastSnapshotRef = useRef<number>(0);
+
+  // Record a snapshot every 5 minutes
+  useEffect(() => {
+    const now = Date.now();
+    if (now - lastSnapshotRef.current < 300000) return; // 5 min debounce
+
+    const newSnapshot = snapshotProviders(providers);
+    setSnapshots(prev => {
+      const updated = [...prev, newSnapshot];
+      saveSnapshots(updated);
+      return updated.slice(-MAX_SNAPSHOTS);
+    });
+    lastSnapshotRef.current = now;
+  }, [providers]);
+
+  // Also snapshot on mount if nothing recent
+  useEffect(() => {
+    const existing = loadSnapshots();
+    if (existing.length === 0 || Date.now() - existing[existing.length - 1].timestamp > 300000) {
+      const initial = snapshotProviders(providers);
+      const updated = [...existing, initial];
+      saveSnapshots(updated);
+      setSnapshots(updated.slice(-MAX_SNAPSHOTS));
+      lastSnapshotRef.current = Date.now();
+    }
+  }, []);
+
+  const data = useMemo(
+    () => buildChartData(snapshots, providers, range),
+    [snapshots, providers, range]
+  );
 
   const toggleProvider = (id: ProviderId) => {
     setVisibleProviders(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
-        if (next.size > 1) next.delete(id); // keep at least 1
+        if (next.size > 1) next.delete(id);
       } else {
         next.add(id);
       }
@@ -100,6 +179,9 @@ export default function UsageHistoryChart({ providers, animationsEnabled = true 
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold text-card-foreground">Usage History</h3>
         <div className="flex items-center gap-2">
+          <span className="text-[9px] text-muted-foreground font-mono">
+            {snapshots.length} pts
+          </span>
           <button
             onClick={selectAll}
             className="text-[9px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border hover:bg-secondary"
@@ -150,7 +232,7 @@ export default function UsageHistoryChart({ providers, animationsEnabled = true 
 
       <div className="h-[140px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data[range]} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <defs>
               {activeProviders.map(p => (
                 <linearGradient key={p.id} id={`gradient-${p.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -194,6 +276,7 @@ export default function UsageHistoryChart({ providers, animationsEnabled = true 
                 fill={`url(#gradient-${p.id})`}
                 isAnimationActive={animationsEnabled}
                 animationDuration={800}
+                connectNulls
               />
             ))}
           </AreaChart>
@@ -201,7 +284,7 @@ export default function UsageHistoryChart({ providers, animationsEnabled = true 
       </div>
 
       <div className="text-[9px] text-muted-foreground mt-1.5 text-center">
-        Click providers to toggle · Double-click to solo
+        Click providers to toggle · Double-click to solo · Snapshots saved every 5 min
       </div>
     </div>
   );

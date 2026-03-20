@@ -30,6 +30,12 @@ import { Pin, Focus } from 'lucide-react';
 const UsageHistoryChart = lazy(() => import('@/components/UsageHistoryChart'));
 const UsagePredictions = lazy(() => import('@/components/UsagePredictions'));
 const WeeklySummary = lazy(() => import('@/components/WeeklySummary'));
+const CostEstimation = lazy(() => import('@/components/CostEstimation'));
+const UsageHeatmap = lazy(() => import('@/components/UsageHeatmap'));
+const SmartInsights = lazy(() => import('@/components/SmartInsights'));
+const ProviderDeepDive = lazy(() => import('@/components/ProviderDeepDive'));
+const UsageBudget = lazy(() => import('@/components/UsageBudget'));
+const EfficiencyScore = lazy(() => import('@/components/EfficiencyScore'));
 
 // Provider categories
 const PROVIDER_CATEGORIES: Record<string, ProviderId[]> = {
@@ -66,6 +72,7 @@ export default function MainWindow() {
   const [alertsHistory, setAlertsHistory] = useState<AlertLogEntry[]>([]);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [deepDiveProvider, setDeepDiveProvider] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevProvidersRef = useRef(providers);
 
@@ -313,6 +320,12 @@ export default function MainWindow() {
     privacyMode: settings.privacyMode,
   });
 
+  // Deep-dive: find the provider to show
+  const deepDiveTarget = useMemo(
+    () => providers.find(p => p.id === deepDiveProvider) ?? null,
+    [providers, deepDiveProvider]
+  );
+
   // Pin/unpin provider
   const togglePin = (id: ProviderId) => {
     const pinned = settings.pinnedProviders.includes(id)
@@ -355,8 +368,35 @@ export default function MainWindow() {
     <div
       className={`flex flex-col h-screen w-full bg-background ${!settings.animationsEnabled ? 'cb-no-animations' : ''
         }`}
+      role="application"
+      aria-label="CodexBar AI Usage Monitor"
     >
+      {/* Skip to content for keyboard users */}
+      <a href="#main-content" className="cb-skip-link">
+        Skip to content
+      </a>
+
+      {/* ARIA live region for status announcements */}
+      <div aria-live="polite" aria-atomic="true" className="cb-sr-only" id="cb-status-announcer">
+        {isRefreshing ? 'Refreshing provider data...' :
+         isPaused ? 'Auto-refresh paused' :
+         `${enabledProviders.length} providers loaded. Next refresh in ${countdown} seconds.`}
+      </div>
+
       <OnboardingOverlay />
+
+      {/* Provider Deep Dive Modal */}
+      <Suspense fallback={null}>
+        <ProviderDeepDive
+          provider={deepDiveTarget}
+          onClose={() => setDeepDiveProvider(null)}
+          onRefresh={refreshProvider}
+          animationsEnabled={settings.animationsEnabled}
+          privacyMode={settings.privacyMode}
+          warningThreshold={deepDiveTarget ? getThresholds(deepDiveTarget.id).warning : 30}
+          criticalThreshold={deepDiveTarget ? getThresholds(deepDiveTarget.id).critical : 10}
+        />
+      </Suspense>
 
       {/* Command Palette */}
       <CommandPalette
@@ -499,7 +539,7 @@ export default function MainWindow() {
             </div>
 
             {/* Provider cards / compact rows */}
-            <div ref={scrollRef} className="flex-1 cb-scroll-area p-3">
+            <div ref={scrollRef} id="main-content" className="flex-1 cb-scroll-area p-3" role="main">
               {isLoading ? (
                 settings.viewMode === 'compact' ? (
                   <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -609,6 +649,7 @@ export default function MainWindow() {
                       }}
                       whileHover={settings.animationsEnabled ? { scale: 1.02, y: -2 } : undefined}
                       className="relative"
+                      onDoubleClick={() => setDeepDiveProvider(provider.id)}
                     >
                       {/* Pin indicator */}
                       {settings.pinnedProviders.includes(provider.id) && (
@@ -685,7 +726,72 @@ export default function MainWindow() {
                 </div>
               )}
 
-              {/* Usage history chart (lazy loaded) */}
+              {/* Smart Insights */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <SmartInsights
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {/* Cost Estimation */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <CostEstimation
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {/* Usage Budget */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <UsageBudget
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {/* Efficiency Scores */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <EfficiencyScore
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {/* Usage Heatmap */}
+              {!isLoading && sortedProviders.length > 0 && (
+                <div className="mt-3">
+                  <Suspense fallback={null}>
+                    <UsageHeatmap
+                      providers={sortedProviders}
+                      animationsEnabled={settings.animationsEnabled}
+                      privacyMode={settings.privacyMode}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {/* Usage history chart (with persistent snapshots) */}
               {!isLoading && sortedProviders.length > 0 && (
                 <div className="mt-3">
                   <Suspense fallback={<div className="h-[200px] rounded-lg border border-border bg-card animate-pulse" />}>
